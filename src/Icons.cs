@@ -16,6 +16,25 @@ namespace PocketGrid
     {
         static readonly int[] Colors = { 0x282B32, 0x2777E8, 0x22966E, 0x845BD1, 0xDF7A29, 0xD85183, 0x269BAC, 0xB95043, 0x626EBB, 0x94713A };
         static readonly Dictionary<int, ImageSource> cache = new Dictionary<int, ImageSource>();
+        public static Color Palette(int index)
+        {
+            if(index<0)return Color.FromArgb(237,65,81);
+            if(index<Colors.Length)return Color.FromArgb(Colors[index]);
+            // 120 further deterministic colors without assets or theme packages.
+            int tone=(index-Colors.Length)%120;
+            double hue=((tone%12)*30+(tone/12)*7)%360;
+            double saturation=0.50+((tone/12)%5)*0.075;
+            double lightness=0.38+((tone/60)*0.15)+((tone/12)%2)*0.045;
+            return FromHsl(hue,saturation,lightness);
+        }
+        static Color FromHsl(double h,double s,double l)
+        {
+            double c=(1-Math.Abs(2*l-1))*s, x=c*(1-Math.Abs((h/60)%2-1)), m=l-c/2;
+            double r=0,g=0,b=0;
+            if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}
+            else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+            return Color.FromArgb((int)Math.Round((r+m)*255),(int)Math.Round((g+m)*255),(int)Math.Round((b+m)*255));
+        }
         public static Bitmap Draw(int index, int pixels)
         {
             var bitmap = new Bitmap(pixels, pixels, PixelFormat.Format32bppArgb);
@@ -28,7 +47,7 @@ namespace PocketGrid
                 {
                     pill.AddArc(-27, -14, 28, 28, 90, 180);
                     pill.AddArc(-1, -14, 28, 28, 270, 180); pill.CloseFigure();
-                    var color = index < 0 ? Color.FromArgb(237, 65, 81) : Color.FromArgb(255, Color.FromArgb(Colors[index % Colors.Length]));
+                    var color = Palette(index);
                     var second = index < 0 ? Color.FromArgb(255, 207, 72) : Color.FromArgb(255, (color.R + 360) / 3, (color.G + 400) / 3, (color.B + 430) / 3);
                     using (var b = new SolidBrush(color)) g.FillPath(b, pill);
                     var state = g.Save(); g.SetClip(pill);

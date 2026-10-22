@@ -1,4 +1,4 @@
-MS Beatuty Capsule Portable 0.6.5 — source/build notes
+MS Beatuty Capsule Portable 0.6.6 — source/build notes
 
 Original source: supplied MS-Beatuty-Capsule-Source.zip (0.3.0), preserved unchanged.
 Only the real portable app is packaged. No SandboxPreview executable is built.
@@ -15,6 +15,9 @@ Shell shortcuts only inside its own executable directory; no launch is performed
 GlassBackdropTests.exe renders synthetic wallpaper and transparent glass offscreen,
 checks pixels and wallpaper positioning, and exports synthetic PNG fixtures.
 It does not capture the desktop or open windows.
+ReferenceTests.exe checks file/folder path mappings without reading source contents.
+CustomIconTests.exe checks image limits, portable icon copy, restore, and 130 colors.
+GridSnapTests.exe also checks synthetic Explorer icon cell occupancy.
 PortableTests.exe creates WPF windows; it was not run in this delivery.
 The headless tests use isolated file-backed startup simulation and local test Data.
 They never write the real HKCU Run key or call the real Explorer taskbar API.
@@ -28,6 +31,8 @@ Source map:
  src/Manager.cs        desktop UI, tray, startup reconciliation and saved modes
  src/Taskbar.cs        ExplorerTAP bridge; XAML blur and transparent brush
  src/GridSnap.cs       desktop placement and collision avoidance
+ src/DesktopIconGrid.cs read-only Explorer desktop grid spacing and icon positions
+ src/CustomIcons.cs    bounded PNG/JPEG/BMP/ICO import to local Data/Icons
  src/CapsuleListDialog.cs  list-based rename/delete
  src/app-sunglasses.png generated source artwork for the app/tray icon
  create-app-icon.ps1 converts the artwork to a multi-size ICO

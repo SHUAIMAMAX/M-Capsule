@@ -35,6 +35,7 @@ namespace PocketGrid
         TaskbarController taskbar;
         bool disposed;
         int taskbarErrorPending;
+        DateTime lastGridRefresh=DateTime.MinValue;
         public Manager()
         {
             Preferences=Settings.Load();
@@ -65,23 +66,31 @@ namespace PocketGrid
                 minimizeHook=Native.SetWinEventHook(0x16,0x16,IntPtr.Zero,desktopChange,0,0,0);
                 hideHook=Native.SetWinEventHook(0x8003,0x8003,IntPtr.Zero,desktopChange,(uint)Process.GetCurrentProcess().Id,0,0);
             }
-            tray=new Forms.NotifyIcon { Text=Ui.Product, Icon=System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location), Visible=true };
-            tray.ContextMenuStrip=BuildTray();
-            try { Settings.SetStartup(Preferences.StartWithWindows); }
-            catch(Exception ex) { StartupLog.Write("registration failure "+ex);Application.Current.Dispatcher.BeginInvoke(new Action(()=>Error(new IOException("开机自启未能登记："+ex.Message)))); }
-            tray.MouseDoubleClick+=(s,e)=>{if(Preferences.Capsules.Count>0)Open(Preferences.Capsules[0]);};
+            // Show anchors before shell COM, tray icon extraction, or taskbar initialization.
             foreach(var c in Preferences.Capsules)CreateWindow(c);
+            tray=new Forms.NotifyIcon { Text=Ui.Product };
+            tray.ContextMenuStrip=BuildTray();
+            tray.MouseDoubleClick+=(s,e)=>{if(Preferences.Capsules.Count>0)Open(Preferences.Capsules[0]);};
             if(!RuntimeMode.Sandbox&&Windows.Count>0)shellRecovery.Start();
             quitEvent=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\"+RuntimeMode.Identity+".Exit");
             quitWait=ThreadPool.RegisterWaitForSingleObject(quitEvent,(s,t)=>Application.Current.Dispatcher.BeginInvoke(new Action(Exit)),null,Timeout.Infinite,false);
-            if(Preferences.TaskbarMode!="normal")ApplyTaskbar(false);
-            Save();
-            if(Preferences.Capsules.Count>0)Icons.Warm(Preferences.Capsules[0],Files);
+            Application.Current.Dispatcher.BeginInvoke(new Action(()=>
+            {
+                if(disposed)return;
+                tray.Icon=System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                tray.Visible=true;
+                try { Settings.SetStartup(Preferences.StartWithWindows); }
+                catch(Exception ex) { StartupLog.Write("registration failure "+ex);Notify("开机自启登记检查失败，请使用托盘菜单检查/修复："+ex.Message); }
+                if(Preferences.TaskbarMode!="normal")ApplyTaskbar(false);
+                Save();
+            }),DispatcherPriority.ContextIdle);
             if(Settings.LoadNotice!=null)Application.Current.Dispatcher.BeginInvoke(new Action(()=>MessageBox.Show(Settings.LoadNotice,Ui.Product,MessageBoxButton.OK,MessageBoxImage.Information)));
         }
         void CreateWindow(Capsule c)
         {
-            var w=new CapsuleWindow(this,c);Windows[c.Id]=w;w.Show();
+            var w=new CapsuleWindow(this,c);
+            if(Windows.Count==0)w.ContentRendered+=(s,e)=>{Program.LogFirstFrame();RefreshDesktopGrid();};
+            Windows[c.Id]=w;w.Show();
         }
         public void Error(Exception ex) { ClosePopup(); MessageBox.Show(ex.Message,Ui.Product,MessageBoxButton.OK,MessageBoxImage.Information); }
         public void Save()
@@ -162,10 +171,10 @@ namespace PocketGrid
             if((uint)msg==Native.TaskbarCreated)
             {
                 tray.Visible=false;tray.Visible=true;
-                Application.Current.Dispatcher.BeginInvoke(new Action(()=>{Reposition();ApplyTaskbar(true);}));
+                Application.Current.Dispatcher.BeginInvoke(new Action(()=>{RefreshDesktopGrid();Reposition();ApplyTaskbar(true);}));
             }
             if(msg==0x007E || msg==0x001A || msg==0x031E)
-                Application.Current.Dispatcher.BeginInvoke(new Action(()=>{Reposition();if(Preferences.TaskbarMode!="normal")ApplyTaskbar(false);}));
+                Application.Current.Dispatcher.BeginInvoke(new Action(()=>{RefreshDesktopGrid();Reposition();if(Preferences.TaskbarMode!="normal")ApplyTaskbar(false);}));
             return IntPtr.Zero;
         }
         void OnForeground(IntPtr hook,uint evt,IntPtr hwnd,int obj,int child,uint thread,uint time)
@@ -176,6 +185,7 @@ namespace PocketGrid
                 if(disposed)return;
                 bool desktop=Native.DesktopForeground();
                 foreach(var w in Windows.Values)if(!w.Interacting)Native.DesktopLayer(w.Handle,desktop);
+                if(desktop)RefreshDesktopGrid();
             }));
         }
         void OnDesktopChange(IntPtr hook,uint evt,IntPtr hwnd,int obj,int child,uint thread,uint time)
@@ -230,6 +240,12 @@ namespace PocketGrid
             var old=Popup;Popup=null;if(old!=null)old.Close();
         }
         public void Reposition(){ClosePopup();foreach(var c in Preferences.Capsules){var w=Windows[c.Id];w.ClampPosition();Native.DesktopLayer(w.Handle,Native.DesktopForeground());}Save();}
+        void RefreshDesktopGrid()
+        {
+            if(RuntimeMode.Sandbox||disposed||(DateTime.UtcNow-lastGridRefresh).TotalSeconds<5)return;
+            lastGridRefresh=DateTime.UtcNow;
+            DesktopIconGrid.Refresh(()=>{if(!disposed)Reposition();});
+        }
         public void ShowCapsuleList()
         {
             ClosePopup();Dialogs++;
@@ -252,17 +268,37 @@ namespace PocketGrid
         public void Rename(Capsule c)
         {
             ClosePopup();Dialogs++;string name;
-            try{name=Ui.AskName("胶囊更名",c.Name);}finally{Dialogs--;}
+            try{name=Ui.AskName("胶囊更名",c.Name,()=>ChangeIcon(c),()=>RestoreIcon(c),()=>CustomIcons.Source(Settings.DataDirectory,c));}finally{Dialogs--;}
             if(name==null)return;RenameCapsule(c,name);
         }
         internal void RenameCapsule(Capsule c,string name)
         {
             c.Name=Logic.CleanName(name);Save();Windows[c.Id].UpdateName();RefreshTray();
         }
+        public void ChangeIcon(Capsule c)
+        {
+            var dialog=new Microsoft.Win32.OpenFileDialog{Title="为“"+c.Name+"”选择图标图片",Filter="图标图片|*.png;*.jpg;*.jpeg;*.bmp;*.ico",Multiselect=false,CheckFileExists=true};
+            var owner=Application.Current.Windows.OfType<Window>().FirstOrDefault(w=>w.IsActive);
+            if(dialog.ShowDialog(owner)!=true)return;
+            try
+            {
+                var image=CustomIcons.Decode(dialog.FileName);
+                string detail=Path.GetFileName(dialog.FileName)+"\n"+image.PixelWidth+" × "+image.PixelHeight+" 像素\n\n确认替换“"+c.Name+"”的桌面图标？\n图片会缩小保存到便携版 Data/Icons。";
+                if(owner==null?MessageBox.Show(detail,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes:MessageBox.Show(owner,detail,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
+                CustomIcons.Save(Settings.DataDirectory,c,dialog.FileName);
+                c.HasCustomIcon=true;Save();Windows[c.Id].UpdateIcon();
+            }
+            catch(Exception ex){Error(new IOException("图标替换失败："+ex.Message,ex));}
+        }
+        public void RestoreIcon(Capsule c)
+        {
+            try { CustomIcons.Remove(Settings.DataDirectory,c);c.HasCustomIcon=false;Save();Windows[c.Id].UpdateIcon(); }
+            catch(Exception ex){Error(new IOException("还原默认图标失败："+ex.Message,ex));}
+        }
         public void DeleteCapsule(Capsule c)
         {
             ClosePopup();
-            if(MessageBox.Show("删除胶囊“"+c.Name+"”？\n里面的快捷方式副本会移入回收站，原快捷方式和软件不受影响。",Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
+            if(MessageBox.Show("删除胶囊“"+c.Name+"”？\n仅移除文件引用；旧版快捷方式副本移入回收站。原文件、文件夹和软件不受影响。",Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
             try
             {
                 RemoveCapsule(c);
@@ -271,7 +307,7 @@ namespace PocketGrid
         }
         internal void RemoveCapsule(Capsule c)
         {
-            ClosePopup();Files.RemoveCapsule(c,RuntimeMode.Recycle);
+            ClosePopup();Files.RemoveCapsule(c,RuntimeMode.Recycle);CustomIcons.Remove(Settings.DataDirectory,c);
             Preferences.Capsules.Remove(c);Windows[c.Id].Close();Windows.Remove(c.Id);Save();RefreshTray();
         }
         internal void SetTaskbarMode(string mode)
@@ -286,10 +322,9 @@ namespace PocketGrid
             foreach(var path in paths)
             {
                 if(!seen.Add(path))continue;
-                try{Files.CopyIn(c,path);}catch(Exception ex){failures.Add(Path.GetFileName(path)+"："+ex.Message);}
+                try{Files.AddReference(c,path);}catch(Exception ex){failures.Add(Path.GetFileName(path)+"："+ex.Message);}
             }
             Save();if(Popup!=null&&Popup.Capsule.Id==c.Id)Popup.Refresh(c.Items.Count>previousCount);
-            Icons.Warm(c,Files);
             if(failures.Count>0)Error(new IOException(String.Join("\n",failures.Take(8))));
         }
         public void ChooseFiles(Capsule c)
@@ -297,7 +332,7 @@ namespace PocketGrid
             Dialogs++;
             try
             {
-                var dialog=new Microsoft.Win32.OpenFileDialog{Title="复制快捷方式到“"+c.Name+"”",Multiselect=true,DereferenceLinks=false,CheckFileExists=true,Filter="快捷方式|*.lnk;*.url"};
+                var dialog=new Microsoft.Win32.OpenFileDialog{Title="添加文件引用到“"+c.Name+"”",Multiselect=true,DereferenceLinks=false,CheckFileExists=true,Filter="所有文件|*.*"};
                 if(dialog.ShowDialog()==true)Add(c,dialog.FileNames);
             }
             finally{Dialogs--;if(Popup!=null){Popup.Activate();Popup.Focus();}}
@@ -311,7 +346,12 @@ namespace PocketGrid
         {
             var path=Files.EntryPath(c,entry);ClosePopup();
             if(RuntimeMode.Sandbox){RuntimeMode.Log("LAUNCH simulated "+path);return;}
-            try{Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}catch(Exception ex){Error(ex);}
+            try
+            {
+                if(!File.Exists(path)&&!Directory.Exists(path))throw new IOException("原文件已移动、删除或暂时不可访问：\n"+path+"\n\n胶囊只保存引用。恢复原路径，或移除此条目后重新拖入。");
+                Process.Start(new ProcessStartInfo(path){UseShellExecute=true});
+            }
+            catch(Exception ex){Error(ex);}
         }
         public void Exit(){if(disposed)return;ClosePopup();Save();Dispose();Application.Current.Shutdown();}
         public void Dispose()

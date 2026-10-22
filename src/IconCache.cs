@@ -27,17 +27,22 @@ namespace PocketGrid
         readonly Dispatcher dispatcher;
         readonly string directory=System.IO.Path.Combine(Settings.DataDirectory,"Cache","Icons");
         bool disposed;
+        bool workersStarted;
         public IconCache(Dispatcher dispatcher)
         {
             this.dispatcher=dispatcher;
-            // Two bounded background workers: a slow shell icon does not block the UI.
-            for(int n=0;n<2;n++){var worker=new Thread(Worker){IsBackground=true,Name="Capsule icons"};worker.SetApartmentState(ApartmentState.STA);worker.Start();}
         }
         public ImageSource Get(string key,string path,Action<ImageSource> callback)
         {
             lock(gate)
             {
                 if(disposed)return null;
+                if(!workersStarted)
+                {
+                    workersStarted=true;
+                    // Start only when a visible page requests icons; no login-time prefetch.
+                    for(int n=0;n<2;n++){var worker=new Thread(Worker){IsBackground=true,Name="Capsule icons"};worker.SetApartmentState(ApartmentState.STA);worker.Start();}
+                }
                 ImageSource image;if(cache.TryGetValue(key,out image))return image;
                 Request request;
                 if(!pending.TryGetValue(key,out request)){request=new Request{Key=key,Path=path};pending.Add(key,request);requests.Add(request);}

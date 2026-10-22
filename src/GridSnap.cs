@@ -10,6 +10,11 @@ namespace PocketGrid
         public double X, Y;
         public GridPoint(double x, double y) { X=x; Y=y; }
     }
+    public sealed class DesktopGrid
+    {
+        public double StepX, StepY, OriginX, OriginY;
+        public GridPoint[] Icons=new GridPoint[0];
+    }
     public static class GridSnap
     {
         public const double StepX=96, StepY=112, Margin=24;
@@ -35,6 +40,35 @@ namespace PocketGrid
                 if(score<best){best=score;bestX=col;bestY=row;}
             }
             return new GridPoint(originX+bestX*StepX,originY+bestY*StepY);
+        }
+        public static GridPoint PlaceOnDesktop(double x,double y,double left,double top,double right,double bottom,
+            double width,double height,IEnumerable<GridPoint> capsules,DesktopGrid desktop)
+        {
+            if(desktop==null||desktop.StepX<40||desktop.StepY<40||desktop.StepX>500||desktop.StepY>500)
+                return Place(x,y,left,top,right,bottom,width,height,capsules);
+            // Explorer returns item-cell origins, not the center of the visible artwork.
+            double offsetX=(desktop.StepX-width)/2,offsetY=(desktop.StepY-height)/2;
+            int minCol=(int)Math.Ceiling((left+8-desktop.OriginX-offsetX)/desktop.StepX);
+            int maxCol=(int)Math.Floor((right-8-width-desktop.OriginX-offsetX)/desktop.StepX);
+            int minRow=(int)Math.Ceiling((top+8-desktop.OriginY-offsetY)/desktop.StepY);
+            int maxRow=(int)Math.Floor((bottom-8-height-desktop.OriginY-offsetY)/desktop.StepY);
+            if(minCol>maxCol||minRow>maxRow)return Place(x,y,left,top,right,bottom,width,height,capsules);
+            var other=capsules==null?new GridPoint[0]:capsules.Where(p=>p!=null).ToArray();
+            var icons=desktop.Icons??new GridPoint[0];
+            GridPoint best=null;double bestScore=Double.PositiveInfinity;
+            for(int row=minRow;row<=maxRow;row++)for(int col=minCol;col<=maxCol;col++)
+            {
+                double px=desktop.OriginX+col*desktop.StepX+offsetX,py=desktop.OriginY+row*desktop.StepY+offsetY;
+                if(other.Any(p=>Overlaps(px,py,width,height,p.X,p.Y,width,height)))continue;
+                if(icons.Any(p=>Overlaps(px,py,width,height,p.X,p.Y,desktop.StepX,desktop.StepY)))continue;
+                double score=Math.Pow((px-x)/desktop.StepX,2)+Math.Pow((py-y)/desktop.StepY,2);
+                if(score<bestScore){bestScore=score;best=new GridPoint(px,py);}
+            }
+            return best??Place(x,y,left,top,right,bottom,width,height,capsules);
+        }
+        static bool Overlaps(double ax,double ay,double aw,double ah,double bx,double by,double bw,double bh)
+        {
+            return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
         }
         static int Index(double value,double origin,double step,int count)
         {

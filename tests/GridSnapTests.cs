@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using PocketGrid;
 
 public static class GridSnapTests
@@ -32,6 +33,18 @@ public static class GridSnapTests
         foreach(var p in positions)Check(seen.Add(p.X+","+p.Y),"32 capsules have unique cells");
         var stable=GridSnap.Place(moved.X,moved.Y,0,0,1920,1080,88,98,none);
         Check(stable.X==moved.X&&stable.Y==moved.Y,"reposition is stable");
+        var desktop=new DesktopGrid{StepX=120,StepY=130,OriginX=20,OriginY=15,
+            Icons=new[]{new GridPoint(20,15),new GridPoint(140,15),new GridPoint(260,15)}};
+        var aligned=GridSnap.PlaceOnDesktop(270,20,0,0,1920,1080,88,98,none,desktop);
+        Check(aligned.X!=276||aligned.Y!=31,"desktop icon cell is never reused");
+        Check(desktop.Icons.All(p=>aligned.X>=p.X+120||aligned.X+88<=p.X||aligned.Y>=p.Y+130||aligned.Y+98<=p.Y),"capsule rectangle does not cover any Explorer icon cell");
+        Check((aligned.X-36)%120==0&&(aligned.Y-31)%130==0,"desktop grid phase and centered anchor match Explorer spacing");
+        var second=GridSnap.PlaceOnDesktop(270,20,0,0,1920,1080,88,98,new[]{aligned},desktop);
+        Check(second.X!=aligned.X||second.Y!=aligned.Y,"capsule avoids an occupied native grid cell");
+        var multi=new DesktopGrid{StepX=120,StepY=130,OriginX=-1910,OriginY=15,Icons=new[]{new GridPoint(-1910,15)}};
+        var nativeSecond=GridSnap.PlaceOnDesktop(-1780,10,-1920,0,0,1080,88,98,none,multi);
+        Check(nativeSecond.X>=-1920&&nativeSecond.X+88<=0,"native grid respects negative-origin monitor");
+        Check(GridSnap.PlaceOnDesktop(31,30,0,0,1920,1080,88,98,none,null).X==24,"missing Shell view falls back to old grid");
         Console.WriteLine("PASS: "+checks+" grid placement checks.");
     }
 }

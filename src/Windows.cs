@@ -20,6 +20,7 @@ namespace PocketGrid
         readonly Manager manager;
         public readonly Capsule Capsule;
         readonly TextBlock label;
+        readonly Image icon;
         readonly Border frame;
         readonly ContextMenu menu;
         readonly DispatcherTimer hoverTimer;
@@ -38,10 +39,11 @@ namespace PocketGrid
             var root=new Grid{Background=Brushes.Transparent,Cursor=Cursors.Hand};
             root.RowDefinitions.Add(new RowDefinition{Height=new GridLength(70)});root.RowDefinitions.Add(new RowDefinition{Height=new GridLength(28)});
             frame=new Border{CornerRadius=new CornerRadius(15),Background=Brushes.Transparent,Margin=new Thickness(6,0,6,0)};
-            frame.Child=new Image{Source=Icons.Source(capsule.ColorIndex),Width=64,Height=64};root.Children.Add(frame);
+            icon=new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=64,Height=64,Stretch=Stretch.Uniform};
+            frame.Child=icon;root.Children.Add(frame);
             label=Ui.Text(capsule.Name,12,Brushes.White);label.HorizontalAlignment=HorizontalAlignment.Center;label.MaxWidth=86;label.TextAlignment=TextAlignment.Center;
             label.Effect=new DropShadowEffect{BlurRadius=4,ShadowDepth=1,Opacity=.9,Color=Colors.Black};Grid.SetRow(label,1);root.Children.Add(label);
-            Content=root;ToolTip="悬停半秒展开 · 拖动后自动对齐桌面网格\n支持一次拖入多个快捷方式";
+            Content=root;ToolTip="悬停半秒展开 · 拖动后自动对齐桌面网格\n支持拖入文件、照片、文件夹（仅保存引用）";
             hoverTimer=new DispatcherTimer(DispatcherPriority.Input){Interval=TimeSpan.FromMilliseconds(500)};
             hoverTimer.Tick+=(s,e)=>
             {
@@ -50,7 +52,7 @@ namespace PocketGrid
                 if(manager.Popup==null||manager.Popup.Capsule.Id!=Capsule.Id)manager.Open(Capsule);
             };
             menu=new ContextMenu();
-            AddMenu("添加快捷方式…",()=>manager.ChooseFiles(capsule));
+            AddMenu("添加文件引用…",()=>manager.ChooseFiles(capsule));
             AddMenu("更名或删除胶囊…",()=>manager.ShowCapsuleList());ContextMenu=menu;
             root.MouseEnter+=(s,e)=>{frame.Background=Ui.Brush(25,255,255,255);if(!pressed){hoverTimer.Stop();hoverTimer.Start();}};
             root.MouseLeave+=(s,e)=>{frame.Background=Brushes.Transparent;hoverTimer.Stop();};
@@ -114,11 +116,12 @@ namespace PocketGrid
             var w=WorkArea();
             var occupied=manager.Windows.Values.Where(other=>other!=this&&other.IsVisible)
                 .Select(other=>new GridPoint(other.Left,other.Top));
-            var point=GridSnap.Place(Left,Top,w.Left,w.Top,w.Right,w.Bottom,Width,Height,occupied);
+            var point=GridSnap.PlaceOnDesktop(Left,Top,w.Left,w.Top,w.Right,w.Bottom,Width,Height,occupied,DesktopIconGrid.InWindowCoordinates(this));
             Left=point.X;Top=point.Y;Remember();
         }
         public void Remember(){Capsule.X=Left;Capsule.Y=Top;}
         public void UpdateName(){label.Text=Capsule.Name;}
+        public void UpdateIcon(){icon.Source=CustomIcons.Source(Settings.DataDirectory,Capsule);}
     }
 
     internal sealed class GridWindow : Window
@@ -157,13 +160,13 @@ namespace PocketGrid
             backdropRefresh=new DispatcherTimer(DispatcherPriority.Background){Interval=TimeSpan.FromMilliseconds(40)};
             backdropRefresh.Tick+=(s,e)=>{backdropRefresh.Stop();RenderBackdrop();};
             var header=new Grid();header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(30)});header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(1,GridUnitType.Star)});header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(32)});
-            header.Children.Add(new Image{Source=Icons.Source(capsule.ColorIndex),Width=26,Height=26});
+            header.Children.Add(new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=26,Height=26});
             var heading=Ui.Text(capsule.Name,15,Ui.White);heading.FontWeight=FontWeights.SemiBold;heading.VerticalAlignment=VerticalAlignment.Center;heading.Margin=new Thickness(7,0,8,0);Grid.SetColumn(heading,1);header.Children.Add(heading);
-            var add=Ui.Button("+","一次添加多个快捷方式");add.Width=30;add.Height=30;add.Click+=(s,e)=>manager.ChooseFiles(Capsule);Grid.SetColumn(add,2);header.Children.Add(add);content.Children.Add(header);
+            var add=Ui.Button("+","一次添加多个文件引用，不复制原文件");add.Width=30;add.Height=30;add.Click+=(s,e)=>manager.ChooseFiles(Capsule);Grid.SetColumn(add,2);header.Children.Add(add);content.Children.Add(header);
             list=new ListBox{Background=Brushes.Transparent,BorderThickness=new Thickness(0),SelectionMode=SelectionMode.Extended,Padding=new Thickness(0),HorizontalContentAlignment=HorizontalAlignment.Center,Foreground=Ui.White,FocusVisualStyle=null};
             ScrollViewer.SetHorizontalScrollBarVisibility(list,ScrollBarVisibility.Disabled);ScrollViewer.SetVerticalScrollBarVisibility(list,ScrollBarVisibility.Disabled);ScrollViewer.SetCanContentScroll(list,false);
             list.ItemContainerStyle=ItemStyle();Grid.SetRow(list,1);content.Children.Add(list);
-            empty=Ui.Text("把快捷方式拖进来\n或点右上角 ＋",13,Ui.Muted);empty.TextAlignment=TextAlignment.Center;empty.VerticalAlignment=VerticalAlignment.Center;Grid.SetRow(empty,1);content.Children.Add(empty);
+            empty=Ui.Text("把文件或文件夹拖进来\n或点右上角 ＋",13,Ui.Muted);empty.TextAlignment=TextAlignment.Center;empty.VerticalAlignment=VerticalAlignment.Center;Grid.SetRow(empty,1);content.Children.Add(empty);
             var footer=new Grid();footer.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(1,GridUnitType.Star)});
             footer.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});footer.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
             count=Ui.Text("",10,Ui.Muted);count.VerticalAlignment=VerticalAlignment.Bottom;footer.Children.Add(count);
@@ -291,7 +294,7 @@ namespace PocketGrid
             }
             empty.Visibility=Capsule.Items.Count==0?Visibility.Visible:Visibility.Collapsed;
             list.Visibility=Capsule.Items.Count==0?Visibility.Collapsed:Visibility.Visible;
-            count.Text=Capsule.Items.Count==0?"快捷方式会复制到胶囊":pageCount>1?"第 "+(pageIndex+1)+"/"+pageCount+" 页 · 共 "+Capsule.Items.Count+" 个":"双击打开 · Ctrl/Shift 复选 · Delete 删除";
+            count.Text=Capsule.Items.Count==0?"只保存引用，不复制原文件":pageCount>1?"第 "+(pageIndex+1)+"/"+pageCount+" 页 · 共 "+Capsule.Items.Count+" 个":"双击打开 · Ctrl/Shift 复选 · Delete 删除";
             previousPage.Visibility=nextPage.Visibility=pageCount>1?Visibility.Visible:Visibility.Collapsed;
             previousPage.IsEnabled=pageIndex>0;nextPage.IsEnabled=pageIndex<pageCount-1;
         }

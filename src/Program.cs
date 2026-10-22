@@ -9,9 +9,17 @@ namespace PocketGrid
 {
     internal static class Program
     {
+        static readonly System.Diagnostics.Stopwatch startupWatch=System.Diagnostics.Stopwatch.StartNew();
+        static bool firstFrame;
+        internal static void LogFirstFrame()
+        {
+            if(firstFrame)return;firstFrame=true;
+            StartupLog.Write("first capsule rendered elapsed_ms="+startupWatch.ElapsedMilliseconds+" (managed entry to WPF ContentRendered; excludes Windows launch scheduling)");
+        }
         [STAThread]
         internal static void Main(string[] args)
         {
+            startupWatch.Restart();
             RuntimeMode.Initialize(args);
             StartupLog.Write("entry background="+args.Contains("--background")+" executable="+Settings.Executable+" data="+Settings.DataDirectory);
             if(args.Any(a=>a=="--cleanup"||a=="--finish-uninstall"||a=="--uninstall")) { MessageBox.Show("便携版无需卸载。请先关闭开机自启、退出程序，再删除整个便携文件夹。",Ui.Product); return; }

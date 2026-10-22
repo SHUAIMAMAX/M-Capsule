@@ -12,19 +12,22 @@ namespace PocketGrid
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
         public string Extension { get; set; } = ".lnk";
         public string Name { get; set; } = "";
+        public string TargetPath { get; set; } = "";
+        public bool IsReference { get { return Extension == ".ref"; } }
     }
     public sealed class Capsule
     {
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
         public string Name { get; set; } = "小工具";
         public int ColorIndex { get; set; }
+        public bool HasCustomIcon { get; set; }
         public double X { get; set; } = 32;
         public double Y { get; set; } = 140;
         public List<Shortcut> Items { get; set; } = new List<Shortcut>();
     }
     public sealed class Preferences
     {
-        public int Version { get; set; } = 2;
+        public int Version { get; set; } = 3;
         public long Revision { get; set; }
         public int NextColor { get; set; }
         public string TaskbarMode { get; set; } = "normal";
@@ -85,7 +88,7 @@ namespace PocketGrid
             using (var reader = XmlReader.Create(input, settings))
             {
                 var p = (Preferences)new XmlSerializer(typeof(Preferences)).Deserialize(reader);
-                if (p.Version != 2 || p.Capsules == null || p.Capsules.Count > MaxCapsules) throw new InvalidDataException("配置版本或胶囊数量无效。");
+                if ((p.Version != 2 && p.Version != 3) || p.Capsules == null || p.Capsules.Count > MaxCapsules) throw new InvalidDataException("配置版本或胶囊数量无效。");
                 var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var c in p.Capsules)
                 {
@@ -93,8 +96,12 @@ namespace PocketGrid
                     c.Name = CleanName(c.Name); c.ColorIndex = Math.Max(0, c.ColorIndex);
                     var entryIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var entry in c.Items)
-                        if (entry == null || !IsId(entry.Id) || !entryIds.Add(entry.Id) || (entry.Extension != ".lnk" && entry.Extension != ".url")) throw new InvalidDataException("快捷方式配置无效。");
+                    {
+                        if (entry == null || !IsId(entry.Id) || !entryIds.Add(entry.Id) || (entry.Extension != ".lnk" && entry.Extension != ".url" && entry.Extension != ".ref")) throw new InvalidDataException("条目配置无效。");
+                        if(entry.IsReference) ShortcutStore.ValidateTarget(entry.TargetPath);
+                    }
                 }
+                p.Version=3;
                 if (!new[] { "normal", "acrylic", "clear" }.Contains(p.TaskbarMode)) p.TaskbarMode = "normal";
                 p.NextColor = Math.Max(0, p.NextColor);
                 if (p.Revision < 0 || p.Revision == long.MaxValue) throw new InvalidDataException("配置序号无效。");
@@ -113,12 +120,42 @@ namespace PocketGrid
         }
         public string EntryPath(Capsule c, Shortcut e)
         {
+            CapsuleDirectory(c);
+            if(e.IsReference) { if(!Logic.IsId(e.Id))throw new InvalidDataException("条目 ID 无效。");return ValidateTarget(e.TargetPath); }
             if (!Logic.IsId(e.Id) || (e.Extension != ".lnk" && e.Extension != ".url")) throw new InvalidDataException("快捷方式 ID 无效。");
             return Path.Combine(CapsuleDirectory(c), e.Id + e.Extension);
         }
         static void CheckDirectory(string dir)
         {
             if (Directory.Exists(dir) && (File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0) throw new IOException("快捷方式目录不能是符号链接或目录联接。");
+        }
+        public static string ValidateTarget(string path)
+        {
+            // Accept absolute filesystem paths only; no URI, shell command, device or ADS paths.
+            if(String.IsNullOrWhiteSpace(path)||path.IndexOfAny(new[]{'"','\r','\n','\0'})>=0 ||
+               path.StartsWith(@"\\?\")||path.StartsWith(@"\\.\")||
+               !(path.StartsWith(@"\\")||(path.Length>=3&&Char.IsLetter(path[0])&&path[1]==':'&&(path[2]=='\\'||path[2]=='/'))) ||
+               path.IndexOf(':',path.StartsWith(@"\\")?0:2)>=0)
+                throw new InvalidDataException("请选择有效的文件或文件夹绝对路径。");
+            try { return Path.GetFullPath(path); }
+            catch(ArgumentException ex){throw new InvalidDataException("文件路径无效。",ex);}
+            catch(NotSupportedException ex){throw new InvalidDataException("文件路径无效。",ex);}
+            catch(PathTooLongException ex){throw new InvalidDataException("文件路径过长。",ex);}
+        }
+        public Shortcut AddReference(Capsule c,string source)
+        {
+            CapsuleDirectory(c);
+            string target=ValidateTarget(source);
+            if(!File.Exists(target)&&!Directory.Exists(target))throw new IOException("文件或文件夹不存在或暂时无法访问。");
+            var existing=c.Items.FirstOrDefault(e=>e.IsReference&&String.Equals(e.TargetPath,target,StringComparison.OrdinalIgnoreCase));
+            if(existing!=null)return existing;
+            if(c.Items.Count>=Logic.MaxItems)throw new IOException("每个胶囊最多放 512 个条目。");
+            string name=Path.GetFileName(target.TrimEnd('\\','/'));
+            if(String.IsNullOrEmpty(name))name=target;
+            if(Logic.IsShortcut(target))name=Path.GetFileNameWithoutExtension(target);
+            var item=new Shortcut{Extension=".ref",TargetPath=target,Name=name};
+            c.Items.Add(item);
+            return item;
         }
         public Shortcut CopyIn(Capsule c, string source)
         {
@@ -140,7 +177,7 @@ namespace PocketGrid
             {
                 if (!c.Items.Contains(entry)) continue;
                 string file = EntryPath(c, entry);
-                if (File.Exists(file)) recycle(file);
+                if (!entry.IsReference && File.Exists(file)) recycle(file);
                 c.Items.Remove(entry);
             }
         }
