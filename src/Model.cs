@@ -20,6 +20,7 @@ namespace PocketGrid
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
         public string Name { get; set; } = "小工具";
         public int ColorIndex { get; set; }
+        public int IconOpacityPercent { get; set; } = 100;
         public bool HasCustomIcon { get; set; }
         public double X { get; set; } = 32;
         public double Y { get; set; } = 140;
@@ -94,6 +95,7 @@ namespace PocketGrid
                 {
                     if (c == null || !IsId(c.Id) || !ids.Add(c.Id) || c.Items == null || c.Items.Count > MaxItems) throw new InvalidDataException("胶囊配置无效。");
                     c.Name = CleanName(c.Name); c.ColorIndex = Math.Max(0, c.ColorIndex);
+                    c.IconOpacityPercent = Math.Max(0, Math.Min(100, c.IconOpacityPercent));
                     var entryIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var entry in c.Items)
                     {

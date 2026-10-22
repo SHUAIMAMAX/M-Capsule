@@ -13,13 +13,13 @@ namespace PocketGrid
         public CapsuleListDialog(Manager manager)
         {
             this.manager=manager;
-            Title="管理桌面胶囊";Width=660;Height=480;MinHeight=230;MinWidth=610;
+            Title="管理桌面胶囊";Width=790;Height=480;MinHeight=230;MinWidth=750;
             WindowStartupLocation=WindowStartupLocation.CenterScreen;
             Background=Brushes.White;ResizeMode=ResizeMode.CanResize;Topmost=true;
             var layout=new DockPanel{Margin=new Thickness(18)};Content=layout;
             var heading=new TextBlock{Text="桌面胶囊",FontSize=19,FontWeight=FontWeights.SemiBold};
             DockPanel.SetDock(heading,Dock.Top);layout.Children.Add(heading);
-            var help=new TextBlock{Text="点击名称更名；可替换或还原每个胶囊的桌面图标。",Margin=new Thickness(0,8,0,4)};
+            var help=new TextBlock{Text="点击名称更名；每行可换色、调透明度、替换或还原图标。",Margin=new Thickness(0,8,0,4)};
             DockPanel.SetDock(help,Dock.Top);layout.Children.Add(help);
             var format=new TextBlock{Text=CustomIcons.Hint,TextWrapping=TextWrapping.Wrap,Foreground=Brushes.DimGray,Margin=new Thickness(0,0,0,12)};
             DockPanel.SetDock(format,Dock.Top);layout.Children.Add(format);
@@ -44,7 +44,12 @@ namespace PocketGrid
                 var replace=new Button{Content="替换图标…",Width=88,Height=30,Margin=new Thickness(8,0,0,0),ToolTip=CustomIcons.Hint};
                 replace.Click+=(s,e)=>{manager.ChangeIcon(current);Refresh();};
                 DockPanel.SetDock(replace,Dock.Right);row.Children.Add(replace);
-                var preview=new Image{Source=CustomIcons.Source(Settings.DataDirectory,current),Width=30,Height=30,Stretch=Stretch.Uniform,Margin=new Thickness(0,0,7,0)};
+                var appearance=new Button{Content="换色/透明度…",Width=110,Height=30,Margin=new Thickness(8,0,0,0),
+                    IsEnabled=!current.HasCustomIcon,ToolTip=current.HasCustomIcon?"请先还原默认胶囊图":"选择 130 种颜色之一及 0–100% 透明度"};
+                appearance.Click+=(s,e)=>{manager.ChangeAppearance(current);Refresh();};
+                DockPanel.SetDock(appearance,Dock.Right);row.Children.Add(appearance);
+                var preview=new Image{Source=CustomIcons.Source(Settings.DataDirectory,current),Width=30,Height=30,Stretch=Stretch.Uniform,Margin=new Thickness(0,0,7,0),
+                    Opacity=current.HasCustomIcon?1:current.IconOpacityPercent/100.0};
                 DockPanel.SetDock(preview,Dock.Left);row.Children.Add(preview);
                 var name=new Button{Content=current.Name,Height=30,HorizontalContentAlignment=HorizontalAlignment.Left,
                     Padding=new Thickness(9,0,9,0),ToolTip="点击更名"};

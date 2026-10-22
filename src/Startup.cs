@@ -42,7 +42,11 @@ namespace PocketGrid
                 store.Write(Command);
                 if(!Enabled)throw new IOException("自启登记后读回不一致，尚未成功启用。");
             }
-            else if(Enabled) store.Delete(); // Do not delete another portable copy's entry.
+            else if(Enabled)
+            {
+                store.Delete(); // Do not delete another portable copy's entry.
+                if(Enabled)throw new IOException("自启快捷方式未能清理，请检查启动文件夹权限。");
+            }
         }
     }
 

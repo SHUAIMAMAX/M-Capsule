@@ -1,4 +1,4 @@
-MS Beatuty Capsule 0.6.6 Portable
+MS Beatuty Capsule 1.0.0 Portable
 
 This distribution is licensed under GNU GPL version 3. See LICENSE.txt.
 

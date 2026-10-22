@@ -28,10 +28,11 @@ namespace PocketGrid
             b.MouseLeave += (s,e) => b.Background=Brush(25,255,255,255);
             return b;
         }
-        public static string AskName(string title, string previous,Action replaceIcon=null,Action restoreIcon=null,Func<ImageSource> currentIcon=null)
+        public static string AskName(string title, string previous,Action replaceIcon=null,Action restoreIcon=null,Func<ImageSource> currentIcon=null,
+            Action changeAppearance=null,Func<bool> hasCustomIcon=null,Func<int> opacityPercent=null)
         {
             bool hasIcon=replaceIcon!=null&&restoreIcon!=null&&currentIcon!=null;
-            var w = new Window { Title = title, Width=hasIcon?470:340, Height=hasIcon?300:170, WindowStartupLocation=WindowStartupLocation.CenterScreen, ResizeMode=ResizeMode.NoResize, ShowInTaskbar=false, Topmost=true, Background=Brush(255,32,38,51), FontFamily=new FontFamily("Microsoft YaHei UI") };
+            var w = new Window { Title = title, Width=hasIcon?490:340, Height=hasIcon?305:170, WindowStartupLocation=WindowStartupLocation.CenterScreen, ResizeMode=ResizeMode.NoResize, ShowInTaskbar=false, Topmost=true, Background=Brush(255,32,38,51), FontFamily=new FontFamily("Microsoft YaHei UI") };
             var stack=new StackPanel { Margin=new Thickness(20) };
             var input=new TextBox { Text=previous, MaxLength=40, FontSize=16, Padding=new Thickness(8), Margin=new Thickness(0,0,0,14) };
             var row=new StackPanel { Orientation=Orientation.Horizontal, HorizontalAlignment=HorizontalAlignment.Right };
@@ -42,13 +43,17 @@ namespace PocketGrid
             {
                 var hint=Text(CustomIcons.Hint,12,Muted);hint.TextWrapping=TextWrapping.Wrap;
                 hint.Margin=new Thickness(0,0,0,8);stack.Children.Add(hint);
-                var image=new Image{Source=currentIcon(),Width=48,Height=48,Stretch=Stretch.Uniform,Margin=new Thickness(0,0,12,0)};
+                var image=new Image{Source=currentIcon(),Width=48,Height=48,Stretch=Stretch.Uniform,Margin=new Thickness(0,0,10,0),
+                    Opacity=hasCustomIcon()!=true?opacityPercent()/100.0:1};
                 var iconRow=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(0,0,0,14)};
                 var replace=new Button{Content="替换图标…",Width=90,Height=32,Margin=new Thickness(0,8,8,0)};
-                var restore=new Button{Content="还原胶囊图",Width=100,Height=32,Margin=new Thickness(0,8,0,0)};
-                replace.Click+=(s,e)=>{replaceIcon();image.Source=currentIcon();};
-                restore.Click+=(s,e)=>{restoreIcon();image.Source=currentIcon();};
-                iconRow.Children.Add(image);iconRow.Children.Add(replace);iconRow.Children.Add(restore);stack.Children.Add(iconRow);
+                var restore=new Button{Content="还原胶囊图",Width=95,Height=32,Margin=new Thickness(0,8,8,0)};
+                var color=new Button{Content="换色/透明度…",Width=114,Height=32,Margin=new Thickness(0,8,0,0),IsEnabled=!hasCustomIcon()};
+                Action refresh=()=>{image.Source=currentIcon();image.Opacity=hasCustomIcon()?1:opacityPercent()/100.0;color.IsEnabled=!hasCustomIcon();};
+                replace.Click+=(s,e)=>{replaceIcon();refresh();};
+                restore.Click+=(s,e)=>{restoreIcon();refresh();};
+                color.Click+=(s,e)=>{changeAppearance();refresh();};
+                iconRow.Children.Add(image);iconRow.Children.Add(replace);iconRow.Children.Add(restore);iconRow.Children.Add(color);stack.Children.Add(iconRow);
             }
             row.Children.Add(cancel);row.Children.Add(ok);stack.Children.Add(input);stack.Children.Add(row);w.Content=stack;
             w.Loaded+=(s,e)=>{input.Focus();input.SelectAll();};

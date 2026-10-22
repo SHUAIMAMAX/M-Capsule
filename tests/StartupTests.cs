@@ -11,10 +11,10 @@ public static class StartupTests
     static void Check(bool value,string name){if(!value)throw new Exception("FAIL "+name);count++;Console.WriteLine("PASS "+name);}
     sealed class MemoryStore:IStartupStore
     {
-        public string Value;public int Writes;public bool IgnoreWrite,FailWrite;
+        public string Value;public int Writes;public bool IgnoreWrite,FailWrite,IgnoreDelete;
         public string Read(){return Value;}
         public void Write(string value){Writes++;if(FailWrite)throw new IOException("blocked");if(!IgnoreWrite)Value=value;}
-        public void Delete(){Value=null;}
+        public void Delete(){if(!IgnoreDelete)Value=null;}
     }
     [STAThread] public static int Main()
     {
@@ -30,6 +30,10 @@ public static class StartupTests
             Check(primary.Writes==1,"healthy startup is not rewritten on every launch");
             legacy.Value="another copy";StartupSetup.Apply(primary,legacy,executable,false);
             Check(primary.Value==null&&legacy.Value=="another copy","disable removes only owned entries");
+            primary.Value=command;primary.IgnoreDelete=true;
+            bool deleteRejected=false;try{new StartupRegistration(primary,executable).Set(false);}catch(IOException){deleteRejected=true;}
+            Check(deleteRejected&&primary.Value==command,"failed startup cleanup is reported and keeps application running");
+            primary.IgnoreDelete=false;new StartupRegistration(primary,executable).Set(false);
             primary.FailWrite=true;legacy.Value=command;
             try{StartupSetup.Apply(primary,legacy,executable,true);}catch(IOException){}
             Check(legacy.Value==command,"failed shortcut creation preserves old Run value");

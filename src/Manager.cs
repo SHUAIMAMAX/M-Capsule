@@ -132,6 +132,7 @@ namespace PocketGrid
             open.Enabled=Preferences.Capsules.Count>0;m.Items.Add(open);
             m.Items.Add("使用说明",null,(s,e)=>{try{Process.Start(new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"使用说明.txt")){UseShellExecute=true});}catch(Exception ex){Error(ex);}});
             m.Items.Add(new Forms.ToolStripSeparator());
+            m.Items.Add("清理自启并退出",null,(s,e)=>DisableStartupAndExit());
             m.Items.Add("退出",null,(s,e)=>Exit());
             return m;
         }
@@ -268,7 +269,8 @@ namespace PocketGrid
         public void Rename(Capsule c)
         {
             ClosePopup();Dialogs++;string name;
-            try{name=Ui.AskName("胶囊更名",c.Name,()=>ChangeIcon(c),()=>RestoreIcon(c),()=>CustomIcons.Source(Settings.DataDirectory,c));}finally{Dialogs--;}
+            try{name=Ui.AskName("胶囊更名",c.Name,()=>ChangeIcon(c),()=>RestoreIcon(c),()=>CustomIcons.Source(Settings.DataDirectory,c),
+                ()=>ChangeAppearance(c),()=>c.HasCustomIcon,()=>c.IconOpacityPercent);}finally{Dialogs--;}
             if(name==null)return;RenameCapsule(c,name);
         }
         internal void RenameCapsule(Capsule c,string name)
@@ -294,6 +296,24 @@ namespace PocketGrid
         {
             try { CustomIcons.Remove(Settings.DataDirectory,c);c.HasCustomIcon=false;Save();Windows[c.Id].UpdateIcon(); }
             catch(Exception ex){Error(new IOException("还原默认图标失败："+ex.Message,ex));}
+        }
+        public void ChangeAppearance(Capsule c)
+        {
+            if(c.HasCustomIcon){MessageBox.Show("请先还原默认胶囊图，再更换颜色和透明度。",Ui.Product);return;}
+            Dialogs++;
+            try
+            {
+                var dialog=new CapsuleAppearanceDialog(c);
+                if(dialog.ShowDialog()!=true)return;
+                int oldColor=c.ColorIndex,oldOpacity=c.IconOpacityPercent;
+                c.ColorIndex=dialog.SelectedColor;
+                c.IconOpacityPercent=dialog.SelectedOpacity;
+                try{Settings.Save(Preferences);}
+                catch(Exception ex){c.ColorIndex=oldColor;c.IconOpacityPercent=oldOpacity;Error(new IOException("胶囊外观未能保存："+ex.Message,ex));return;}
+                Windows[c.Id].UpdateIcon();
+                if(Popup!=null&&Popup.Capsule.Id==c.Id)ClosePopup();
+            }
+            finally{Dialogs--;}
         }
         public void DeleteCapsule(Capsule c)
         {
@@ -352,6 +372,18 @@ namespace PocketGrid
                 Process.Start(new ProcessStartInfo(path){UseShellExecute=true});
             }
             catch(Exception ex){Error(ex);}
+        }
+        public void DisableStartupAndExit()
+        {
+            if(disposed)return;
+            try
+            {
+                Settings.SetStartup(false);
+                Preferences.StartWithWindows=false;
+                Settings.Save(Preferences);
+                Exit();
+            }
+            catch(Exception ex){Error(new IOException("未能完成自启清理或配置保存，程序仍在运行："+ex.Message,ex));}
         }
         public void Exit(){if(disposed)return;ClosePopup();Save();Dispose();Application.Current.Shutdown();}
         public void Dispose()

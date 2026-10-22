@@ -32,6 +32,18 @@ try
     Check(restored.Capsules[0].Name==c.Name&&restored.Capsules[0].Items[0].Id==b.Id,"Names and managed-copy identity survive serialization");
     Check(restored.TaskbarMode=="acrylic"&&restored.NextColor==2,"Taskbar mode and palette sequence persist");
     Check(restored.StartWithWindows,"autostart preference survives XML round trip");
+    c.ColorIndex=129;c.IconOpacityPercent=0;
+    var tinted=Logic.Deserialize(Logic.Serialize(p));
+    Check(tinted.Capsules[0].ColorIndex==129&&tinted.Capsules[0].IconOpacityPercent==0,"chosen color and zero opacity persist");
+    c.IconOpacityPercent=100;
+    Check(Logic.Deserialize(Logic.Serialize(p)).Capsules[0].IconOpacityPercent==100,"full opacity persists");
+    var oldColorXml=Logic.Serialize(p).Replace("<IconOpacityPercent>100</IconOpacityPercent>","");
+    Check(Logic.Deserialize(oldColorXml).Capsules[0].IconOpacityPercent==100,"older configuration defaults to opaque icon");
+    c.IconOpacityPercent=101;
+    Check(Logic.Deserialize(Logic.Serialize(p)).Capsules[0].IconOpacityPercent==100,"invalid opacity is clamped high");
+    c.IconOpacityPercent=-1;
+    Check(Logic.Deserialize(Logic.Serialize(p)).Capsules[0].IconOpacityPercent==0,"invalid opacity is clamped low");
+    c.IconOpacityPercent=100;c.ColorIndex=0;
     var legacy=Logic.Deserialize(Logic.Serialize(p).Replace("<StartWithWindows>true</StartWithWindows>",""));
     Check(legacy.StartWithWindows,"older portable configuration defaults to autostart");
     p.StartWithWindows=false;

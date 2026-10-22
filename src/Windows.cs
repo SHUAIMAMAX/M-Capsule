@@ -39,7 +39,8 @@ namespace PocketGrid
             var root=new Grid{Background=Brushes.Transparent,Cursor=Cursors.Hand};
             root.RowDefinitions.Add(new RowDefinition{Height=new GridLength(70)});root.RowDefinitions.Add(new RowDefinition{Height=new GridLength(28)});
             frame=new Border{CornerRadius=new CornerRadius(15),Background=Brushes.Transparent,Margin=new Thickness(6,0,6,0)};
-            icon=new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=64,Height=64,Stretch=Stretch.Uniform};
+            icon=new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=64,Height=64,Stretch=Stretch.Uniform,
+                Opacity=capsule.HasCustomIcon?1:capsule.IconOpacityPercent/100.0};
             frame.Child=icon;root.Children.Add(frame);
             label=Ui.Text(capsule.Name,12,Brushes.White);label.HorizontalAlignment=HorizontalAlignment.Center;label.MaxWidth=86;label.TextAlignment=TextAlignment.Center;
             label.Effect=new DropShadowEffect{BlurRadius=4,ShadowDepth=1,Opacity=.9,Color=Colors.Black};Grid.SetRow(label,1);root.Children.Add(label);
@@ -121,7 +122,7 @@ namespace PocketGrid
         }
         public void Remember(){Capsule.X=Left;Capsule.Y=Top;}
         public void UpdateName(){label.Text=Capsule.Name;}
-        public void UpdateIcon(){icon.Source=CustomIcons.Source(Settings.DataDirectory,Capsule);}
+        public void UpdateIcon(){icon.Source=CustomIcons.Source(Settings.DataDirectory,Capsule);icon.Opacity=Capsule.HasCustomIcon?1:Capsule.IconOpacityPercent/100.0;}
     }
 
     internal sealed class GridWindow : Window
@@ -160,7 +161,8 @@ namespace PocketGrid
             backdropRefresh=new DispatcherTimer(DispatcherPriority.Background){Interval=TimeSpan.FromMilliseconds(40)};
             backdropRefresh.Tick+=(s,e)=>{backdropRefresh.Stop();RenderBackdrop();};
             var header=new Grid();header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(30)});header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(1,GridUnitType.Star)});header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(32)});
-            header.Children.Add(new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=26,Height=26});
+            header.Children.Add(new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=26,Height=26,
+                Opacity=capsule.HasCustomIcon?1:capsule.IconOpacityPercent/100.0});
             var heading=Ui.Text(capsule.Name,15,Ui.White);heading.FontWeight=FontWeights.SemiBold;heading.VerticalAlignment=VerticalAlignment.Center;heading.Margin=new Thickness(7,0,8,0);Grid.SetColumn(heading,1);header.Children.Add(heading);
             var add=Ui.Button("+","一次添加多个文件引用，不复制原文件");add.Width=30;add.Height=30;add.Click+=(s,e)=>manager.ChooseFiles(Capsule);Grid.SetColumn(add,2);header.Children.Add(add);content.Children.Add(header);
             list=new ListBox{Background=Brushes.Transparent,BorderThickness=new Thickness(0),SelectionMode=SelectionMode.Extended,Padding=new Thickness(0),HorizontalContentAlignment=HorizontalAlignment.Center,Foreground=Ui.White,FocusVisualStyle=null};
