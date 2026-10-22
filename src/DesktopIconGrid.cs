@@ -14,7 +14,7 @@ namespace PocketGrid
         static int reading;
         static readonly Guid browserService=new Guid("4C96BE40-915C-11CF-99D3-00AA004AE837");
         public static DesktopGrid Snapshot { get { return Volatile.Read(ref snapshot); } }
-        public static void Refresh(Action onReady)
+        public static void Refresh(Action<bool,bool> onReady)
         {
             if(RuntimeMode.Sandbox||Interlocked.Exchange(ref reading,1)!=0)return;
             var dispatcher=Application.Current.Dispatcher;
@@ -23,12 +23,29 @@ namespace PocketGrid
                 try
                 {
                     var value=Read();
-                    if(value!=null){Volatile.Write(ref snapshot,value);dispatcher.BeginInvoke(new Action(onReady));}
+                    if(value!=null)
+                    {
+                        var previous=Snapshot;
+                        bool spacingChanged=previous==null||previous.StepX!=value.StepX||previous.StepY!=value.StepY||
+                            Phase(previous.OriginX,previous.StepX)!=Phase(value.OriginX,value.StepX)||
+                            Phase(previous.OriginY,previous.StepY)!=Phase(value.OriginY,value.StepY);
+                        bool iconsChanged=previous==null||!SameIcons(previous.Icons,value.Icons);
+                        Volatile.Write(ref snapshot,value);
+                        if(spacingChanged||iconsChanged)dispatcher.BeginInvoke(new Action(()=>onReady(spacingChanged,iconsChanged)));
+                    }
                 }
                 catch(Exception ex){StartupLog.Write("desktop icon grid unavailable: "+ex.Message);}
                 finally{Interlocked.Exchange(ref reading,0);}
             }){IsBackground=true,Name="Desktop icon grid"};
             worker.SetApartmentState(ApartmentState.STA);worker.Start();
+        }
+        static double Phase(double position,double step){return (position%step+step)%step;}
+        static bool SameIcons(GridPoint[] a,GridPoint[] b)
+        {
+            if(a==null||b==null)return a==b;
+            if(a.Length!=b.Length)return false;
+            for(int i=0;i<a.Length;i++)if(a[i].X!=b[i].X||a[i].Y!=b[i].Y)return false;
+            return true;
         }
         static DesktopGrid Read()
         {

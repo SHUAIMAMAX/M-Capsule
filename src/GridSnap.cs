@@ -46,25 +46,27 @@ namespace PocketGrid
         {
             if(desktop==null||desktop.StepX<40||desktop.StepY<40||desktop.StepX>500||desktop.StepY>500)
                 return Place(x,y,left,top,right,bottom,width,height,capsules);
-            // Explorer returns item-cell origins, not the center of the visible artwork.
-            double offsetX=(desktop.StepX-width)/2,offsetY=(desktop.StepY-height)/2;
-            int minCol=(int)Math.Ceiling((left+8-desktop.OriginX-offsetX)/desktop.StepX);
-            int maxCol=(int)Math.Floor((right-8-width-desktop.OriginX-offsetX)/desktop.StepX);
-            int minRow=(int)Math.Ceiling((top+8-desktop.OriginY-offsetY)/desktop.StepY);
-            int maxRow=(int)Math.Floor((bottom-8-height-desktop.OriginY-offsetY)/desktop.StepY);
+            // Align capsule window origins with Explorer item-cell origins, including row zero.
+            int minCol=(int)Math.Ceiling((left-desktop.OriginX)/desktop.StepX);
+            int maxCol=(int)Math.Floor((right-width-desktop.OriginX)/desktop.StepX);
+            int minRow=(int)Math.Ceiling((top-desktop.OriginY)/desktop.StepY);
+            int maxRow=(int)Math.Floor((bottom-height-desktop.OriginY)/desktop.StepY);
             if(minCol>maxCol||minRow>maxRow)return Place(x,y,left,top,right,bottom,width,height,capsules);
             var other=capsules==null?new GridPoint[0]:capsules.Where(p=>p!=null).ToArray();
-            var icons=desktop.Icons??new GridPoint[0];
             GridPoint best=null;double bestScore=Double.PositiveInfinity;
             for(int row=minRow;row<=maxRow;row++)for(int col=minCol;col<=maxCol;col++)
             {
-                double px=desktop.OriginX+col*desktop.StepX+offsetX,py=desktop.OriginY+row*desktop.StepY+offsetY;
+                double px=desktop.OriginX+col*desktop.StepX,py=desktop.OriginY+row*desktop.StepY;
                 if(other.Any(p=>Overlaps(px,py,width,height,p.X,p.Y,width,height)))continue;
-                if(icons.Any(p=>Overlaps(px,py,width,height,p.X,p.Y,desktop.StepX,desktop.StepY)))continue;
                 double score=Math.Pow((px-x)/desktop.StepX,2)+Math.Pow((py-y)/desktop.StepY,2);
                 if(score<bestScore){bestScore=score;best=new GridPoint(px,py);}
             }
             return best??Place(x,y,left,top,right,bottom,width,height,capsules);
+        }
+        public static bool CoversDesktopIcon(double x,double y,double width,double height,DesktopGrid desktop)
+        {
+            if(desktop==null||desktop.Icons==null)return false;
+            return desktop.Icons.Any(p=>p!=null&&Overlaps(x,y,width,height,p.X,p.Y,desktop.StepX,desktop.StepY));
         }
         static bool Overlaps(double ax,double ay,double aw,double ah,double bx,double by,double bw,double bh)
         {

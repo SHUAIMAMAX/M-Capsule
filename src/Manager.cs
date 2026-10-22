@@ -25,6 +25,7 @@ namespace PocketGrid
         readonly Native.WinEvent foreground;
         readonly Native.WinEvent desktopChange;
         readonly DispatcherTimer desktopRecovery;
+        readonly DispatcherTimer desktopGridTimer;
         readonly DispatcherTimer shellRecovery;
         int shellAttempts;
         readonly Native.MouseHook outside;
@@ -47,12 +48,14 @@ namespace PocketGrid
             desktopChange=OnDesktopChange;
             desktopRecovery=new DispatcherTimer(DispatcherPriority.Input){Interval=TimeSpan.FromMilliseconds(100)};
             desktopRecovery.Tick+=(s,e)=>RecoverDesktop();
+            desktopGridTimer=new DispatcherTimer(DispatcherPriority.Background){Interval=TimeSpan.FromSeconds(2)};
+            desktopGridTimer.Tick+=(s,e)=>{if(Native.DesktopForeground())RefreshDesktopGrid();};
             shellRecovery=new DispatcherTimer(DispatcherPriority.Background){Interval=TimeSpan.FromMilliseconds(500)};
             shellRecovery.Tick+=(s,e)=>
             {
                 bool ready=Windows.Count>0;
                 foreach(var w in Windows.Values)
-                    if(!w.Interacting&&!Native.DesktopLayer(w.Handle,true))ready=false;
+                    if(w.IsVisible&&!w.Interacting&&!Native.DesktopLayer(w.Handle,true))ready=false;
                 if(ready||++shellAttempts>=120)
                 {
                     shellRecovery.Stop();
@@ -68,6 +71,7 @@ namespace PocketGrid
             }
             // Show anchors before shell COM, tray icon extraction, or taskbar initialization.
             foreach(var c in Preferences.Capsules)CreateWindow(c);
+            if(!RuntimeMode.Sandbox)desktopGridTimer.Start();
             tray=new Forms.NotifyIcon { Text=Ui.Product };
             tray.ContextMenuStrip=BuildTray();
             tray.MouseDoubleClick+=(s,e)=>{if(Preferences.Capsules.Count>0)Open(Preferences.Capsules[0]);};
@@ -90,7 +94,7 @@ namespace PocketGrid
         {
             var w=new CapsuleWindow(this,c);
             if(Windows.Count==0)w.ContentRendered+=(s,e)=>{Program.LogFirstFrame();RefreshDesktopGrid();};
-            Windows[c.Id]=w;w.Show();
+            Windows[c.Id]=w;w.Show();w.UpdateIconOcclusion();
         }
         public void Error(Exception ex) { ClosePopup(); MessageBox.Show(ex.Message,Ui.Product,MessageBoxButton.OK,MessageBoxImage.Information); }
         public void Save()
@@ -185,7 +189,7 @@ namespace PocketGrid
             {
                 if(disposed)return;
                 bool desktop=Native.DesktopForeground();
-                foreach(var w in Windows.Values)if(!w.Interacting)Native.DesktopLayer(w.Handle,desktop);
+                foreach(var w in Windows.Values)if(w.IsVisible&&!w.Interacting)Native.DesktopLayer(w.Handle,desktop);
                 if(desktop)RefreshDesktopGrid();
             }));
         }
@@ -207,7 +211,7 @@ namespace PocketGrid
         {
             if(disposed||--recoveryTicks<=0){desktopRecovery.Stop();return;}
             foreach(var w in Windows.Values)
-                if(!w.Interacting && Native.IsWindow(w.Handle))Native.DesktopLayer(w.Handle,true);
+                if(w.IsVisible&&!w.Interacting && Native.IsWindow(w.Handle))Native.DesktopLayer(w.Handle,true);
         }
         IntPtr OnMouse(int code,IntPtr wp,IntPtr lp)
         {
@@ -240,12 +244,17 @@ namespace PocketGrid
             if(mouseHook!=IntPtr.Zero){Native.UnhookWindowsHookEx(mouseHook);mouseHook=IntPtr.Zero;}
             var old=Popup;Popup=null;if(old!=null)old.Close();
         }
-        public void Reposition(){ClosePopup();foreach(var c in Preferences.Capsules){var w=Windows[c.Id];w.ClampPosition();Native.DesktopLayer(w.Handle,Native.DesktopForeground());}Save();}
+        public void Reposition(){ClosePopup();foreach(var c in Preferences.Capsules){var w=Windows[c.Id];w.ClampPosition();w.UpdateIconOcclusion();if(w.IsVisible)Native.DesktopLayer(w.Handle,Native.DesktopForeground());}Save();}
         void RefreshDesktopGrid()
         {
-            if(RuntimeMode.Sandbox||disposed||(DateTime.UtcNow-lastGridRefresh).TotalSeconds<5)return;
+            if(RuntimeMode.Sandbox||disposed||(DateTime.UtcNow-lastGridRefresh).TotalSeconds<1.5)return;
             lastGridRefresh=DateTime.UtcNow;
-            DesktopIconGrid.Refresh(()=>{if(!disposed)Reposition();});
+            DesktopIconGrid.Refresh((spacingChanged,iconsChanged)=>
+            {
+                if(disposed)return;
+                if(spacingChanged)Reposition();
+                else if(iconsChanged)foreach(var w in Windows.Values)w.UpdateIconOcclusion();
+            });
         }
         public void ShowCapsuleList()
         {
@@ -264,7 +273,7 @@ namespace PocketGrid
         {
             if(Preferences.Capsules.Count>=Logic.MaxCapsules)throw new IOException("最多创建 32 个胶囊。");
             var c=new Capsule{Name=Logic.CleanName(name),ColorIndex=Preferences.NextColor++,X=32+Preferences.Capsules.Count%6*92,Y=140+Preferences.Capsules.Count/6*110};
-            Preferences.Capsules.Add(c);Save();CreateWindow(c);Native.DesktopLayer(Windows[c.Id].Handle,true);RefreshTray();return c;
+            Preferences.Capsules.Add(c);Save();CreateWindow(c);if(Windows[c.Id].IsVisible)Native.DesktopLayer(Windows[c.Id].Handle,true);RefreshTray();return c;
         }
         public void Rename(Capsule c)
         {
@@ -393,6 +402,7 @@ namespace PocketGrid
             if(minimizeHook!=IntPtr.Zero)Native.UnhookWinEvent(minimizeHook);
             if(hideHook!=IntPtr.Zero)Native.UnhookWinEvent(hideHook);
             desktopRecovery.Stop();
+            desktopGridTimer.Stop();
             shellRecovery.Stop();
             ClosePopup();if(quitWait!=null)quitWait.Unregister(null);if(quitEvent!=null)quitEvent.Dispose();
             if(taskbar!=null)taskbar.Dispose();

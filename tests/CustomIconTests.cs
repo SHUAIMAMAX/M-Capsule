@@ -49,6 +49,10 @@ public static class CustomIconTests
             check(CustomIcons.Decode(ico).PixelWidth>=16,"decode actual ICO file");
             var colors=Enumerable.Range(0,130).Select(i=>Icons.Palette(i).ToArgb()).ToArray();
             check(colors.Distinct().Count()==130,"130 distinct default capsule colors");
+            check(Enumerable.Range(0,130).All(i=>Icons.Palette(i).A==255),"every default capsule color is fully opaque");
+            check(new Capsule().IconOpacityPercent==100,"new capsule defaults to fully opaque icon");
+            using(var pill=Icons.Draw(1,64))
+                check(pill.GetPixel(23,40).A>=250&&pill.GetPixel(40,23).A>=250,"both pill halves render opaque at the default setting");
             Console.WriteLine("PASS: "+checks+" custom icon and palette checks.");
         }
         finally{Directory.Delete(dir,true);}

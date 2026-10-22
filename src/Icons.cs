@@ -19,7 +19,11 @@ namespace PocketGrid
         public static Color Palette(int index)
         {
             if(index<0)return Color.FromArgb(237,65,81);
-            if(index<Colors.Length)return Color.FromArgb(Colors[index]);
+            if(index<Colors.Length)
+            {
+                int rgb=Colors[index];
+                return Color.FromArgb(255,(rgb>>16)&255,(rgb>>8)&255,rgb&255);
+            }
             // 120 further deterministic colors without assets or theme packages.
             int tone=(index-Colors.Length)%120;
             double hue=((tone%12)*30+(tone/12)*7)%360;

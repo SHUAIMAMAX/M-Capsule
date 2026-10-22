@@ -1,4 +1,4 @@
-MS Beatuty Capsule Portable 1.0.0 — source/build notes
+MS Beatuty Capsule Portable 1.0.1 — source/build notes
 
 Original source: supplied MS-Beatuty-Capsule-Source.zip (0.3.0), preserved unchanged.
 Only the real portable app is packaged. No SandboxPreview executable is built.

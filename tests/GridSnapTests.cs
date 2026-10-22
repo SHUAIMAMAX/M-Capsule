@@ -36,14 +36,23 @@ public static class GridSnapTests
         var desktop=new DesktopGrid{StepX=120,StepY=130,OriginX=20,OriginY=15,
             Icons=new[]{new GridPoint(20,15),new GridPoint(140,15),new GridPoint(260,15)}};
         var aligned=GridSnap.PlaceOnDesktop(270,20,0,0,1920,1080,88,98,none,desktop);
-        Check(aligned.X!=276||aligned.Y!=31,"desktop icon cell is never reused");
-        Check(desktop.Icons.All(p=>aligned.X>=p.X+120||aligned.X+88<=p.X||aligned.Y>=p.Y+130||aligned.Y+98<=p.Y),"capsule rectangle does not cover any Explorer icon cell");
-        Check((aligned.X-36)%120==0&&(aligned.Y-31)%130==0,"desktop grid phase and centered anchor match Explorer spacing");
+        Check(aligned.X==260&&aligned.Y==15,"capsule may use the same first-row cell as a desktop icon");
+        Check(GridSnap.CoversDesktopIcon(aligned.X,aligned.Y,88,98,desktop),"overlapping Explorer icon takes visual and click priority");
+        Check(!GridSnap.CoversDesktopIcon(500,400,88,98,desktop),"capsule without icon overlap remains visible");
+        Check((aligned.X-20)%120==0&&(aligned.Y-15)%130==0,"desktop grid phase starts at Explorer item origin without extra margin");
         var second=GridSnap.PlaceOnDesktop(270,20,0,0,1920,1080,88,98,new[]{aligned},desktop);
         Check(second.X!=aligned.X||second.Y!=aligned.Y,"capsule avoids an occupied native grid cell");
         var multi=new DesktopGrid{StepX=120,StepY=130,OriginX=-1910,OriginY=15,Icons=new[]{new GridPoint(-1910,15)}};
         var nativeSecond=GridSnap.PlaceOnDesktop(-1780,10,-1920,0,0,1080,88,98,none,multi);
         Check(nativeSecond.X>=-1920&&nativeSecond.X+88<=0,"native grid respects negative-origin monitor");
+        var compact=new DesktopGrid{StepX=72,StepY=80,OriginX=16,OriginY=12,Icons=new[]{new GridPoint(16,12)}};
+        var compactTop=GridSnap.PlaceOnDesktop(18,13,0,0,800,600,88,98,none,compact);
+        Check(compactTop.X==16&&compactTop.Y==12,"small desktop icons still allow first-row placement");
+        var compactMove=GridSnap.PlaceOnDesktop(180,210,0,0,800,600,88,98,none,compact);
+        Check((compactMove.X-16)%72==0&&(compactMove.Y-12)%80==0,"Ctrl-wheel resized grid uses new small spacing");
+        var expanded=new DesktopGrid{StepX=150,StepY=170,OriginX=16,OriginY=12,Icons=new[]{new GridPoint(16,12)}};
+        var expandedMove=GridSnap.PlaceOnDesktop(180,210,0,0,800,600,88,98,none,expanded);
+        Check((expandedMove.X-16)%150==0&&(expandedMove.Y-12)%170==0,"Ctrl-wheel resized grid uses new large spacing");
         Check(GridSnap.PlaceOnDesktop(31,30,0,0,1920,1080,88,98,none,null).X==24,"missing Shell view falls back to old grid");
         Console.WriteLine("PASS: "+checks+" grid placement checks.");
     }

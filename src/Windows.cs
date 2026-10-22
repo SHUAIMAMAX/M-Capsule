@@ -115,12 +115,27 @@ namespace PocketGrid
         public void ClampPosition()
         {
             var w=WorkArea();
-            var occupied=manager.Windows.Values.Where(other=>other!=this&&other.IsVisible)
+            var occupied=manager.Windows.Values.Where(other=>other!=this)
                 .Select(other=>new GridPoint(other.Left,other.Top));
             var point=GridSnap.PlaceOnDesktop(Left,Top,w.Left,w.Top,w.Right,w.Bottom,Width,Height,occupied,DesktopIconGrid.InWindowCoordinates(this));
             Left=point.X;Top=point.Y;Remember();
         }
         public void Remember(){Capsule.X=Left;Capsule.Y=Top;}
+        public void UpdateIconOcclusion()
+        {
+            var grid=DesktopIconGrid.InWindowCoordinates(this);
+            if(grid==null)return;
+            bool covered=GridSnap.CoversDesktopIcon(Left,Top,Width,Height,grid);
+            if(covered&&IsVisible)
+            {
+                if(manager.Popup!=null&&manager.Popup.Capsule.Id==Capsule.Id)manager.ClosePopup();
+                Hide();
+            }
+            else if(!covered&&!IsVisible)
+            {
+                Show();Native.DesktopLayer(Handle,true);
+            }
+        }
         public void UpdateName(){label.Text=Capsule.Name;}
         public void UpdateIcon(){icon.Source=CustomIcons.Source(Settings.DataDirectory,Capsule);icon.Opacity=Capsule.HasCustomIcon?1:Capsule.IconOpacityPercent/100.0;}
     }
