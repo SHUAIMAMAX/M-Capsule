@@ -1,0 +1,24 @@
+# Local builds and private portable data
+build/
+dist/
+bin/
+obj/
+Data/
+SandboxData/
+**/Data/
+**/SandboxData/
+.vs/
+.idea/
+*.user
+*.suo
+*.log
+.env
+.env.*
+!.env.example
+*.pfx
+*.key
+hosts.yml
+
+# Release binaries are uploaded as release assets, not committed to source history.
+/release-assets/
+/publish-state.json

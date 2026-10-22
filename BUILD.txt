@@ -1,0 +1,45 @@
+MS Beatuty Capsule Portable 0.6.5 — source/build notes
+
+Original source: supplied MS-Beatuty-Capsule-Source.zip (0.3.0), preserved unchanged.
+Only the real portable app is packaged. No SandboxPreview executable is built.
+
+Requirements: x64 Windows, .NET Framework 4.8.
+Offline build: run build-local.ps1 using PowerShell 7 with bundled Roslyn assemblies.
+SDK build: run build.ps1 using .NET SDK 8 or newer (not tested in this delivery).
+Package: run package.ps1 with -RuntimeDirectory and a fresh -Destination.
+
+Tests compile with build-local.ps1 but never run automatically.
+CoreTests.exe, GridSnapTests.exe and HeadlessPortableTests.exe do not open app windows.
+StartupTests.exe tests startup migration with memory adapters and creates real
+Shell shortcuts only inside its own executable directory; no launch is performed.
+GlassBackdropTests.exe renders synthetic wallpaper and transparent glass offscreen,
+checks pixels and wallpaper positioning, and exports synthetic PNG fixtures.
+It does not capture the desktop or open windows.
+PortableTests.exe creates WPF windows; it was not run in this delivery.
+The headless tests use isolated file-backed startup simulation and local test Data.
+They never write the real HKCU Run key or call the real Explorer taskbar API.
+
+Source map:
+ src/Model.cs          XML preferences, including StartWithWindows (default true)
+ src/Settings.cs       portable Data directory and storage/recovery
+ src/Startup.cs        verified Startup-folder shortcut and legacy Run migration
+ src/StartupLog.cs     bounded startup diagnostics beside the app's Data
+ src/GlassBackdrop.cs  read-only wallpaper metadata, position mapping, CPU blur and alpha
+ src/Manager.cs        desktop UI, tray, startup reconciliation and saved modes
+ src/Taskbar.cs        ExplorerTAP bridge; XAML blur and transparent brush
+ src/GridSnap.cs       desktop placement and collision avoidance
+ src/CapsuleListDialog.cs  list-based rename/delete
+ src/app-sunglasses.png generated source artwork for the app/tray icon
+ create-app-icon.ps1 converts the artwork to a multi-size ICO
+ vendor/               ExplorerTAP binary, source and third-party notices
+
+Taskbar mapping follows the bundled TranslucentTB 2026.2 source:
+ taskbarattributeworker.cpp uses SetTaskbarBlur for blur and
+ SetTaskbarAppearance with SolidColor for clear on Windows 11.
+The ExplorerTAP DLL may remain loaded in Explorer until sign-out.
+No signing certificate is included. See 使用说明.txt for the validation boundary.
+
+Popup rendering uses a per-pixel-alpha WPF layered window, not DWM Acrylic.
+Only its wallpaper background is blurred. Text/icons are separate foreground content.
+The runtime reads wallpaper files; it does not capture the desktop. Live wallpapers
+and windows behind the popup are not sampled for blur.

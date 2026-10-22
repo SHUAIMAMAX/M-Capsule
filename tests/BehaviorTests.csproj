@@ -1,0 +1,2 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><OutputType>Exe</OutputType><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup><ItemGroup><Compile Include="BehaviorTests.cs"/><Compile Include="../src/Model.cs" Link="Model.cs"/><Compile Include="../src/GridSnap.cs" Link="GridSnap.cs"/><Compile Include="../src/Recovery.cs" Link="Recovery.cs"/><Compile Include="../src/InstallFiles.cs" Link="InstallFiles.cs"/></ItemGroup></Project>
+

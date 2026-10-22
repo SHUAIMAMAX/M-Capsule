@@ -1,0 +1,31 @@
+﻿MS Beatuty Capsule 0.6.5 Portable
+
+This distribution is licensed under GNU GPL version 3. See LICENSE.txt.
+
+TranslucentTB ExplorerTAP
+Copyright: TranslucentTB contributors; retain all notices in the bundled source.
+Version: 2026.2. ExplorerTAP.dll is redistributed unmodified.
+Project: https://github.com/TranslucentTB/TranslucentTB
+Binary: https://github.com/TranslucentTB/TranslucentTB/releases/download/2026.2/TranslucentTB-portable-x64.zip
+Corresponding source: https://github.com/TranslucentTB/TranslucentTB/archive/refs/tags/2026.2.zip
+Bundled source: vendor/TranslucentTB-2026.2-source.zip in this repository and the corresponding portable Source.zip
+DLL SHA256: c48f1a06168acd7839269dde0d15ccf5d09c702512b94dd6ba9a05df1b153dc2
+License: GPL-3.0; full upstream notices and build files are in the source archive.
+The taskbar integration calls the published ExplorerTAP interface from C#.
+MS Beatuty Capsule is an independent project, not an official TranslucentTB or Microsoft product.
+
+.NET Framework and Windows system libraries are prerequisites provided by Microsoft,
+not redistributed in this portable package. Build-only NuGet reference assemblies are not included.
+Capsule icons are drawn in code for this application; emoji was used as a design cue.
+
+ExplorerTAP dependency sources and notices are also bundled:
+- Microsoft Detours, commit 4b8c659f549b0ab21cf649377c7a84eb708f5e68, MIT.
+  vendor/Detours-source.zip and vendor/Detours-LICENSE.txt
+  https://github.com/microsoft/Detours
+- Microsoft Windows Implementation Libraries, v1.0.250325.1, MIT.
+  vendor/WIL-source.zip and vendor/WIL-LICENSE.txt
+  https://github.com/microsoft/wil
+The versions are taken from the upstream 2026.2 overlay port and pinned vcpkg
+baseline 84bab45d415d22042bd0b9081aea57f362da3f35.
+
+
