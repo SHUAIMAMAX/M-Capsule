@@ -58,7 +58,7 @@ public static class PortableTests
             File.Delete(Settings.Snapshot+".pending");
 
             var memory=new MemoryStartup();
-            string quoted=Path.Combine(Settings.InstallDirectory,"中文 & spaces","MSBeatutyCapsule.exe");
+            string quoted=Path.Combine(Settings.InstallDirectory,"中文 & spaces","M-Capsule.exe");
             var startup=new StartupRegistration(memory,quoted);
             Check(!startup.Enabled,"autostart is opt-in");
             startup.Set(true);

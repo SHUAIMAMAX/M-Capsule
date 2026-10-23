@@ -1,127 +1,98 @@
-# 💊 MS Beatuty Capsule · 桌面胶囊
+# 💊 M-Capsule
 
-把常用文件和快捷方式收进几个胶囊，让桌面简单一点。
+**给桌面吃点药，缓解你的桌面焦虑。**
 
-一个面向 **Windows 11 x64** 的轻量便携桌面工具。按自己的习惯创建“桌面办公”“科研软件”“影音娱乐”“小工具”等胶囊，鼠标停留半秒展开，用完回到桌面。
+把常用文件装进胶囊，让桌面重新留白。完整便携包**不到 0.7 MB**，比许多照片还小。免安装、无浏览器内核、无额外后台服务；专注整理，不堆砌功能。
 
-**免安装 · 简单分类 · 悬停展开 · 开机自启 · 本地保存**
+**Windows 11 x64 · .NET Framework 4.8 · 本地保存 · 登录自启**
 
-[下载最新版](https://github.com/SHUAIMAMAX/MS-Beatuty-Capsule/releases/latest) · [反馈问题](https://github.com/SHUAIMAMAX/MS-Beatuty-Capsule/issues)
+[下载最新版](https://github.com/SHUAIMAMAX/M-Capsule/releases/latest) · [反馈问题](https://github.com/SHUAIMAMAX/M-Capsule/issues) · [验证与已知限制](docs/验证与已知限制.md)
 
 ![桌面胶囊与半透明展开面板](docs/images/desktop-overview.png)
 
-## 为什么做这个小软件
+## 功能
 
-桌面上的快捷方式一多，就容易越摆越乱。这个项目希望用很少的操作，把常用入口整理好：放几个胶囊、拖入快捷方式、需要时展开。
+- **拖入即复制**：照片、文档、视频、压缩包、程序和快捷方式等文件，不限大小，复制到 `Data/Capsules`。删除原文件，胶囊内副本仍在。文件夹只保存原路径引用。
+- **拖出即移走**：从展开面板拖到资源管理器或桌面，目标接收成功后胶囊移除条目；其文件副本进入回收站。旧版路径引用只从胶囊移除，不删除原文件。大文件复制需要磁盘空间，可能短暂占用界面。
+- **悬停即展开**：鼠标停留约 0.5 秒打开；桌面被其他应用盖住时不会误触发。面板自适应大小，内容过多时翻页。静态壁纸取样形成半透明毛玻璃。
+- **贴合桌面**：胶囊对齐 Windows 图标网格，跟随图标尺寸调整。新胶囊参考图标分布，默认在中央、右侧或下侧出现；可以与图标格子重叠。
+- **集中管理**：托盘右键选择 **◆ 胶囊管理 · Capsule Manager**。勾选多个胶囊，可批量删除、统一换图、统一换色/透明度；使用自定义图的胶囊会跳过换色。点击名称更名。右上角 **⚙ 文/A** 切换中文、英语、日语。默认胶囊图有 130 色、0–100% 透明度，默认完全不透明。
+- **可选的终极整理**：主动点击并确认后，将当前用户桌面顶层可见的普通文件和快捷方式移入 `胶囊整理` 文件夹，打开并尝试排在左半屏，右半屏**每次新建 5 个**随机色胶囊。再次使用复用已有文件夹，同名文件加序号，不覆盖。不会开机自动运行；不移动已有文件夹、隐藏/系统项目或公共桌面项目。
+- **开机可用**：默认在当前用户登录后自启；胶囊、位置、文件副本及配置都随同目录 `Data` 保存。托盘可检查/修复自启，停用前可选择“清理自启并退出”。任务栏另有正常、毛玻璃、全透明三种可选外观，效果取决于 Windows 环境。
 
-它的产品取向是**轻量、简单、够用**。维护重心放在桌面整理、启动入口和基础外观上，克制增加复杂功能，让一个小工具保持小工具的样子。
+胶囊只放桌面，不提供任务栏胶囊固定入口。图片图标支持 PNG/JPEG/BMP/ICO，原图不超过 2 MiB、最长边不超过 1024 像素，建议 256×256 正方形。
 
-1.1.0 继续使用单个 C# / WPF 主程序与少量必要文件，不打包浏览器内核，无需安装器或额外后台服务。便携 ZIP 只放运行所需文件与说明；对应源码单独提供，无需下载即可正常使用。CPU、内存和登录后启动时间尚未做跨设备基准测试。
+![托盘图标](docs/images/tray-icon.png) ![托盘菜单](docs/images/tray-menu.png) ![胶囊管理](docs/images/capsule-manager.png)
 
-## 基础功能
+截图由项目使用者提供；其中第三方软件只作分类示例，不随项目分发。旧截图可能仍显示更名前的标题。
 
-- **桌面胶囊分类**：创建多个胶囊，分别放置常用快捷方式；胶囊只放在桌面。
-- **悬停半秒展开**：鼠标在胶囊上停留约 0.5 秒自动展开；其他应用盖住桌面、鼠标停在其他窗口上时不会误触发。
-- **拖入即可整理**：照片、文档、音视频、压缩包、程序和快捷方式均可拖入；单个文件不超过 5 MiB（5×1024×1024 字节）时复制进 `Data/Capsules`，超过 5 MiB 时只保存原路径引用。文件夹始终只保存路径引用。双击交给 Windows 默认程序打开。
-- **贴合桌面网格**：读取 Windows 桌面图标的格距和位置，胶囊首行与图标首行对齐，也可放在已有图标的格子。桌面活动时会更新格距，跟随鼠标滚轮调整图标大小；读取失败时回退到固定网格。胶囊位于桌面图标上方，即使图标铺满桌面也可看到和拖动。
-- **按图标分布放置新胶囊**：图标稀疏时默认放在屏幕中央；密集且主要集中在左侧时放在右侧中间，主要集中在上方时放在下方中间。新装初次创建的胶囊也使用此规则，已有胶囊的位置不会因升级而重置。
-- **可选的终极整理模式**：只在右键托盘明确选择并点击确认后执行，不会随启动自动运行。当前用户桌面上可见的普通文件和快捷方式会移动到新建的 `胶囊整理` 文件夹；已有文件夹、隐藏/系统项目和公共桌面项目不移动。文件夹会在资源管理器打开并尝试排到屏幕左半边，右半边生成 5 个随机颜色的胶囊。中途移动失败会尝试回退已移动文件；若已有同名文件夹，功能直接停止。
-- **集中更名和删除**：管理窗口列出所有胶囊，点击名称更名，点击右侧按钮删除。
-- **自定义胶囊外观**：在管理列表或“胶囊更名”窗口，为默认胶囊选择 130 种颜色之一，并设置图标透明度 0–100%，默认 100% 不透明；名称保持可见。也可替换、还原图标；上传自定义图片后需先还原默认图才能换色。图片支持 PNG、JPG/JPEG、BMP、ICO；最长边 1024 像素、文件 2 MiB 以内，建议 256×256 正方形。
-- **半透明壁纸毛玻璃**：展开背景按桌面位置取样并模糊壁纸，文字和图标保持清晰。
-- **开机自动启动**：默认启用当前用户登录自启；先显示胶囊，再做托盘图标、自启登记检查和图标按需加载。托盘可选择“清理自启并退出”，用于停用和删除便携版前移除本副本的启动快捷方式。
-- **少量基础外观**：托盘提供正常、毛玻璃、全透明三种任务栏外观选项；效果取决于 Windows 版本和系统环境。
+## 下载与升级
 
-复制进胶囊的小文件和 `.lnk/.url` 快捷方式在原文件删除后仍可使用；删除条目只移除胶囊内副本，不删除原文件。大文件和文件夹的引用需要原路径可访问。升级后，仍可访问的旧版小文件引用会在首个胶囊显示后逐项迁移为副本；原路径已经失效的条目保留引用，需恢复原路径或重新拖入。自定义胶囊图会另存一份缩小后的图片到 `Data/Icons`。展开面板随内容调整大小，不显示滚动条；内容超过屏幕可容纳范围时翻页。
+首次使用下载 [`M-Capsule-Portable-1.2.0.zip`](https://github.com/SHUAIMAMAX/M-Capsule/releases/latest)，完整解压到当前用户可写的固定文件夹，运行 `M-Capsule.exe`。保留旁边的 `.exe.config`、`vendor` 以及运行后生成的整个 `Data`。普通使用**无需下载单独的源码 ZIP**。
 
-## 界面预览
+**从 v1.1.0 或更早版本升级不能只替换 EXE，因为 EXE 已改名。**
 
-### 托盘入口
+1. 退出旧程序，建议先备份旧版整个 `Data`。
+2. 将新版完整 ZIP 解压到**原便携目录**，保留旧 `Data`，不要覆盖或删除它。
+3. 运行 `M-Capsule.exe`，核对旧胶囊及配置。程序核验新自启快捷方式后，清理仅指向同目录旧 EXE 的旧启动项。
+4. 确认正常后，可手动删除旧 `MSBeatutyCapsule.exe` 和相应 `.config`。此后的更新是否仅替换 EXE，以相应版本说明为准。
 
-![戴墨镜的胶囊托盘图标](docs/images/tray-icon.png)
+搬家要带上整个 `Data` 并在新位置运行一次，以更新自启目标。停用前选“清理自启并退出”；若已经删除程序，可按 `Win+R` → `shell:startup`，仅删除本程序的 `M-Capsule.lnk` 或旧版 `MS Beatuty Capsule Portable.lnk`。Windows 设置或组织策略仍可能阻止自启。
 
-### 简单的托盘菜单
+适用 **Windows 11 x64**，建议 22H2 或更新，需 .NET Framework 4.8，普通用户权限即可。Windows 10、ARM64 未系统验证；未提供 macOS、Linux 版本。
 
-![新建、自启、外观和胶囊管理菜单](docs/images/tray-menu.png)
+## 项目与验证
 
-### 更名和删除集中管理
+这是公开的 **Vibe Coding 项目**：人提出需求、决定取舍并反馈真实使用问题，AI 辅助实现和排查。AI 参与并不是质量保证。项目追求轻量、简单、可维护，不引入过多复杂功能。
 
-![桌面胶囊管理窗口](docs/images/capsule-manager.png)
+本版完成 **316 项离线隔离检查**，包括重复整理、文件复制与拖出数据处理、配置迁移和自启逻辑。按使用者要求，开发测试没有控制其真实桌面、Explorer、任务栏或真实启动文件夹；拖拽交互、显示和登录时序仍需用户反馈。详见 [验证与已知限制](docs/验证与已知限制.md)。
 
-截图由项目使用者提供，展示实际桌面使用界面。截图中的第三方软件仅用于演示快捷方式分类，不随本项目分发。
+主体是 C# / WPF，目标框架 `net48`，输出 x64 便携 EXE。构建说明见 [BUILD.txt](BUILD.txt)。按 [GNU GPL v3](LICENSE.txt) 发布；第三方声明见 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)。
 
-## 适用系统
+---
 
-| 项目 | 要求或说明 |
-| --- | --- |
-| 操作系统 | Windows 11，建议 22H2 或更新版本 |
-| 架构 | x64（Intel / AMD 64 位） |
-| 运行环境 | .NET Framework 4.8 |
-| 放置目录 | 当前用户可写的固定文件夹 |
-| 权限 | 普通用户运行，无需管理员权限 |
-| 暂未验证 | Windows 10、Windows ARM64 与各类定制桌面环境 |
-| 其他平台 | 未提供 macOS、Linux 版本 |
+# 💊 M-Capsule — English
 
-壁纸毛玻璃针对**静态桌面壁纸**设计，不会实时模糊其他应用窗口或视频/动态壁纸。任务栏外观也可能受 Windows 更新、系统透明设置和其他美化工具影响。
+**Give your desktop a little medicine and ease the anxiety of desktop clutter.**
 
-## 下载与运行
+Put everyday files into capsules and make room on your desktop again. The complete portable ZIP is **under 0.7 MB**, smaller than many photos. No installer, bundled browser engine, or extra background service. Organization without needless features.
 
-在 [Releases 发布页](https://github.com/SHUAIMAMAX/MS-Beatuty-Capsule/releases/latest) 下载 `MS-Beatuty-Capsule-Portable-1.1.0.zip`。
+**Windows 11 x64 · .NET Framework 4.8 · Local data · Launch at sign-in**
 
-1. 将完整 ZIP 解压到一个固定、可写的文件夹。
-2. 运行 `MSBeatutyCapsule.exe`。
-3. 右键托盘图标新建胶囊，将快捷方式拖进去。
+[Download](https://github.com/SHUAIMAMAX/M-Capsule/releases/latest) · [Report an issue](https://github.com/SHUAIMAMAX/M-Capsule/issues) · [Validation and limits](docs/验证与已知限制.md)
 
-请保留程序旁的 `vendor` 文件夹与 `MSBeatutyCapsule.exe.config`。正式程序运行后，配置、自定义图标及旧版快捷方式副本保存在同目录的 `Data` 文件夹。
+![Desktop capsules and translucent panel](docs/images/desktop-overview.png)
 
-### 从旧版升级
+## Features
 
-1. 从托盘菜单退出旧版。
-2. 使用发布页的更新 EXE 覆盖原目录中的 `MSBeatutyCapsule.exe`。
-3. 保留原有 `Data`、`vendor` 和 `.exe.config`，再运行一次新版。
+- **Copy files in**: Drag in photos, documents, videos, archives, apps, and shortcuts of any size. A copy is stored in `Data/Capsules` and survives removal of the original. Folders remain path references.
+- **Move entries out**: Drag an entry from the expanded panel to Explorer or the desktop. Once accepted by the destination, its capsule entry is removed and the stored copy goes to the Recycle Bin. Legacy path references are only removed from the capsule. Large copies need disk space and may briefly occupy the UI.
+- **Hover to open**: Hover for about 0.5 seconds. Covered desktop capsules do not open accidentally. The panel fits its contents and uses pages when needed. Static wallpaper sampling creates a translucent glass background.
+- **Fit the desktop**: Capsules follow the Windows icon grid and icon size changes. New capsules choose a central, right, or lower position based on icon distribution; overlap with icon cells is allowed.
+- **Manage together**: Right-click the tray icon and choose **◆ Capsule Manager**. Select multiple capsules for batch deletion, one shared image, or one color/opacity. Capsules with custom images are skipped for color changes. Click a name to rename it. **⚙ 文/A** cycles Chinese, English, and Japanese. Default artwork has 130 colors and 0–100% opacity, initially fully opaque.
+- **Optional Ultimate Organizing Mode**: Only after you choose it and confirm, ordinary visible files and shortcuts on the current user's Desktop move into `胶囊整理`. The folder opens and the app attempts to position it on the left; **five new** random-color capsules appear on the right every time. Later runs reuse the folder and number colliding filenames without overwriting. It never runs at startup and leaves existing folders, hidden/system items, and Public Desktop items alone.
+- **Ready at sign-in**: Enabled by default, with capsules, positions, copied files, and settings in the adjacent `Data` directory. The tray can check/repair startup and clean it on exit. Normal, blurred, and clear taskbar modes depend on the Windows environment.
 
-单独的 EXE 用于更新现有便携版；第一次使用请下载完整 ZIP。迁移到新目录时，请带上整个 `Data` 文件夹。
+Capsules live on the desktop, not as pinned taskbar capsules. Custom images accept PNG/JPEG/BMP/ICO, up to 2 MiB and 1024 pixels on the longest side; a 256×256 square is recommended.
 
-## 开机自启与配置保存
+![Tray icon](docs/images/tray-icon.png) ![Tray menu](docs/images/tray-menu.png) ![Capsule manager](docs/images/capsule-manager.png)
 
-这里的“开机自启”指**登录当前 Windows 用户后自动运行**。
+Screenshots were supplied by a project user. Third-party apps shown are examples and are not included. Older screenshots may show the previous name.
 
-首次正常运行时，程序按配置登记自启，默认开启。当前版本在用户的 Windows 启动文件夹中创建 `MS Beatuty Capsule Portable.lnk`，目标指向当前便携目录的 EXE，并读回核验路径和后台启动参数。
+## Download and upgrade
 
-托盘中的“开机自动启动”可以关闭或开启；“检查/修复开机自启…”可以核验登记并查看实际路径。Windows 自身的“设置 → 应用 → 启动”或系统策略仍可能禁用启动项。
+For a first install, download [`M-Capsule-Portable-1.2.0.zip`](https://github.com/SHUAIMAMAX/M-Capsule/releases/latest), fully extract it into a fixed user-writable folder, and run `M-Capsule.exe`. Keep its `.exe.config`, `vendor`, and the complete `Data` directory created at runtime. **The separate source ZIP is not needed to run the app.**
 
-停用或删除前，右击托盘图标选择 **“清理自启并退出”**。它会核验并清理指向当前副本的启动快捷方式，同时保存关闭自启的选择；若清理或保存失败，程序会提示且保持运行。普通“退出”保留当前自启选择。之后可备份 `Data` 并删除便携目录；如果已经先删除程序，可按 `Win+R` 输入 `shell:startup`，手动删除 `MS Beatuty Capsule Portable.lnk`。不要删除启动文件夹中其他程序的快捷方式。
+**Upgrading from v1.1.0 or earlier requires the full ZIP because the EXE has been renamed.** Exit the old app, back up all of `Data`, and extract the new ZIP into the same portable folder without deleting `Data`. Run `M-Capsule.exe` and verify your capsules and preferences. After verifying the new startup shortcut, the app retires old startup entries pointing to the old EXE in the same folder. You may then manually remove the old `MSBeatutyCapsule.exe` and matching `.config`. Follow each later release's upgrade instructions.
 
-胶囊名称、位置、小文件副本、大文件和文件夹的路径引用、自定义图标、任务栏模式和自启选择保存在 `Data` 中，正常重启无需重新设置。启动记录位于 `Data/Logs/startup.log`。Windows 可能延迟执行启动文件夹中的程序，新版主要减少程序自身在首个胶囊绘制前的工作，不能保证登录后立刻出现。不要只移动 EXE；移动整个目录后需要在新位置运行一次，以更新自启目标。
+When relocating, move all of `Data` and run once from the new location to refresh startup. Before removal choose “Clean startup and exit.” If the app is already gone, use `Win+R` → `shell:startup` and remove only its `M-Capsule.lnk` or old `MS Beatuty Capsule Portable.lnk`. System settings or organization policy can still disable startup.
 
-## 这是一个 Vibe Coding 项目
+Target system: **Windows 11 x64**, preferably 22H2 or later, with .NET Framework 4.8 and ordinary user permissions. Windows 10 and ARM64 are not systematically verified; macOS and Linux builds are unavailable.
 
-本项目由真实的个人使用需求驱动，采用 **Vibe Coding** 的方式开发：人提出需求、确定取舍并反馈实际使用问题，AI 辅助编写代码、排查问题和迭代实现。
+## Project and validation
 
-这不是成熟度或质量保证的标签。项目仍在持续迭代，会公开实现、已知限制和验证范围，也欢迎通过 Issue 提交问题。希望把注意力放在好用、简单和可维护上，避免为了增加功能而增加功能。
+This is openly a **vibe-coding project**: a person supplies requirements, tradeoffs, and real-use feedback; AI assists implementation and debugging. AI involvement is not a quality guarantee. The project aims to remain small, simple, and maintainable.
 
-当前版本完成了 304 项本地检查，覆盖隔离目录的文件移动与回退、密集桌面位置选择、五胶囊布局，以及既有的文件复制、自启和毛玻璃行为；这些检查不等同于在所有 Windows 版本上完成实机验收。资源管理器的左半屏排列是窗口定位，不创建 Windows Snap 分组；失败时文件仍在整理文件夹中，可手动排列。详见 [验证与已知限制](docs/验证与已知限制.md)。
+This release completed **316 isolated offline checks**, covering repeated organization, copied-file transfer, configuration migration, and startup behavior. At the user's request, development tests did not operate their real desktop, Explorer, taskbar, or Startup folder. Actual drag interaction, rendering, and sign-in timing still need user feedback. See [Validation and known limits](docs/验证与已知限制.md).
 
-## 源码与构建
-
-主体为 C# / WPF，目标框架 `net48`，输出 x64 便携 EXE。
-
-在 Windows 上使用 PowerShell 7（需包含 Roslyn 编译组件）进行离线构建：
-
-```powershell
-pwsh -NoProfile -File .\build-local.ps1
-```
-
-也提供 `build.ps1` 的 .NET SDK 构建方式，详见 [BUILD.txt](BUILD.txt)。测试程序随离线构建生成，不会自动运行；`PortableTests.exe` 会创建窗口，其他测试的范围见构建说明。
-
-## 反馈问题
-
-请尽量提供 Windows 版本、软件版本、复现步骤和相关截图。涉及启动问题时可参考 `Data/Logs/startup.log`；上传前请检查其中是否包含不希望公开的个人路径。
-
-## 许可与致谢
-
-项目按 **GNU GPL v3** 发布，见 [LICENSE.txt](LICENSE.txt)。
-
-任务栏外观部分参考并使用 [TranslucentTB](https://github.com/TranslucentTB/TranslucentTB) 的 ExplorerTAP 组件，保留相应许可、源代码和第三方声明；也感谢 Microsoft Detours 与 Windows Implementation Libraries。详见 [第三方说明](THIRD-PARTY-NOTICES.txt)。
-
-本项目是独立的个人项目。
+The app uses C# / WPF, targets `net48`, and produces an x64 portable EXE. See [BUILD.txt](BUILD.txt). Licensed under [GNU GPL v3](LICENSE.txt), with third-party notices in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).

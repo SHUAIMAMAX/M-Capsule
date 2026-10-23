@@ -7,7 +7,8 @@ namespace PocketGrid
     {
         public static string InstallDirectory { get { return AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar); } }
         public static string DataDirectory { get { return Path.Combine(InstallDirectory,RuntimeMode.Sandbox?"SandboxData":"Data"); } }
-        public static string Executable { get { return Path.Combine(InstallDirectory,"MSBeatutyCapsule.exe"); } }
+        public static string Executable { get { return Path.Combine(InstallDirectory,"M-Capsule.exe"); } }
+        public static string LegacyExecutable { get { return Path.Combine(InstallDirectory,"MSBeatutyCapsule.exe"); } }
         public static string LoadNotice { get; private set; }
         public static bool FreshStart { get; private set; }
         internal static string Snapshot { get { return Path.Combine(DataDirectory,"Config","configuration.xml"); } }
@@ -45,11 +46,17 @@ namespace PocketGrid
             return new StartupRegistration(store,Executable);
         }
         public static bool StartupEnabled() { return Registration().Enabled; }
-        public static string StartupLink { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"MS Beatuty Capsule Portable.lnk"); } }
+        public static string StartupLink { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"M-Capsule.lnk"); } }
+        public static string LegacyStartupLink { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"MS Beatuty Capsule Portable.lnk"); } }
         public static void SetStartup(bool enabled)
         {
             if(RuntimeMode.Sandbox)Registration().Set(enabled);
-            else StartupSetup.Apply(new ShortcutStartupStore(StartupLink,Executable),new RegistryStartupStore(),Executable,enabled);
+            else
+            {
+                var legacy=new RegistryStartupStore();
+                StartupSetup.Apply(new ShortcutStartupStore(StartupLink,Executable),legacy,Executable,enabled);
+                StartupSetup.RetireOldName(legacy,LegacyExecutable,LegacyStartupLink);
+            }
             StartupLog.Write("registration enabled="+enabled+" verified="+StartupEnabled());
         }
     }

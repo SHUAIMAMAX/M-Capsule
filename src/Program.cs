@@ -25,7 +25,7 @@ namespace PocketGrid
             if(args.Any(a=>a=="--cleanup"||a=="--finish-uninstall"||a=="--uninstall")) { MessageBox.Show("便携版无需安装器。请在托盘右键选择“清理自启并退出”，按需备份 Data，然后删除便携文件夹。若已删除程序，可从 shell:startup 手动移除本程序的启动快捷方式。",Ui.Product); return; }
             string[] launchArgs=args.Where(a=>a!="--sandbox").ToArray();
             string id=launchArgs.Length==2&&launchArgs[0]=="--capsule"&&Logic.IsId(launchArgs[1])?launchArgs[1]:null;
-            Native.SetCurrentProcessExplicitAppUserModelID(id==null?"MS.BeatutyCapsule":"MS.BeatutyCapsule."+id);
+            Native.SetCurrentProcessExplicitAppUserModelID(id==null?"M.Capsule":"M.Capsule."+id);
             bool first;
             using(var mutex=new Mutex(true,"Local\\"+RuntimeMode.Identity+".Instance",out first))
             {

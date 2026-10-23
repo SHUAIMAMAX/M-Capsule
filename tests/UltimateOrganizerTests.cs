@@ -32,8 +32,22 @@ public static class UltimateOrganizerTests
             Check(Directory.Exists(destination)&&File.Exists(Path.Combine(destination,"App.lnk"))&&File.Exists(Path.Combine(destination,"照片.png")),"Yes moves both files into organizing folder");
             Check(!File.Exists(link)&&!File.Exists(photo),"desktop originals removed by move");
             Check(File.Exists(Path.Combine(sub,"keep.txt"))&&File.Exists(hidden)&&File.Exists(Path.Combine(desktop,"desktop.ini")),"folders and hidden system files preserved");
-            Check(Reject(()=>UltimateOrganizer.Prepare(desktop)),"existing organizing folder blocks second run");
-            Check(Reject(()=>UltimateOrganizer.Execute(plan,true)),"stale plan cannot overwrite existing folder");
+            Check(Reject(()=>UltimateOrganizer.Execute(plan,true)),"stale plan cannot move files twice");
+            File.WriteAllText(link,"new shortcut");
+            File.WriteAllText(photo,"new photo");
+            var again=UltimateOrganizer.Prepare(desktop);
+            Check(again.DestinationExists&&again.Files.Length==2,"second run reuses existing organizing folder");
+            string reused=UltimateOrganizer.Execute(again,true);
+            Check(reused==destination&&File.ReadAllText(Path.Combine(destination,"App.lnk"))=="shortcut"&&
+                File.ReadAllText(Path.Combine(destination,"App (2).lnk"))=="new shortcut","second run keeps old file and uniquely names new shortcut");
+            Check(File.ReadAllText(Path.Combine(destination,"照片.png"))=="photo"&&
+                File.ReadAllText(Path.Combine(destination,"照片 (2).png"))=="new photo","second run keeps old photo and moves new one");
+            File.WriteAllText(link,"third shortcut");File.WriteAllText(photo,"third photo");
+            var retry=UltimateOrganizer.Prepare(desktop);
+            Check(Reject(()=>UltimateOrganizer.Execute(retry,true,i=>{if(i==1)throw new IOException("second run simulated failure");})),
+                "failure during repeated run is reported");
+            Check(File.Exists(link)&&File.Exists(photo)&&Directory.Exists(destination)&&
+                !File.Exists(Path.Combine(destination,"App (3).lnk")),"repeated-run failure rolls back and preserves existing folder");
             var left=ExplorerLayout.LeftHalf(new Rectangle(-1920,40,1920,1040));
             Check(left.Left==-1920&&left.Top==40&&left.Width==960&&left.Height==1040,"half-screen geometry respects negative monitor origin");
             RuntimeMode.Initialize(new[]{"--sandbox"});

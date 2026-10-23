@@ -72,7 +72,7 @@ namespace PocketGrid
         }
         public static void Recycle(string path)
         {
-            var op = new FileOperation { Function = 3, From = path + "\0\0", Flags = 0x40 | 0x10 | 0x4 | 0x400, Title = "MS Beatuty Capsule" };
+            var op = new FileOperation { Function = 3, From = path + "\0\0", Flags = 0x40 | 0x10 | 0x4 | 0x400, Title = "M-Capsule" };
             int result = SHFileOperation(ref op);
             if (result != 0 || op.Aborted) throw new System.IO.IOException("未能将胶囊副本移入回收站。原快捷方式未受影响。");
         }

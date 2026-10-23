@@ -13,8 +13,8 @@ namespace PocketGrid
         {
             get
             {
-                if(!Sandbox) return "MS.BeatutyCapsule.Portable";
-                using(var sha=SHA256.Create()) return "MS.BeatutyCapsule.Sandbox."+BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(Settings.InstallDirectory.ToUpperInvariant()))).Replace("-","").Substring(0,16);
+                if(!Sandbox) return "M.Capsule.Portable";
+                using(var sha=SHA256.Create()) return "M.Capsule.Sandbox."+BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(Settings.InstallDirectory.ToUpperInvariant()))).Replace("-","").Substring(0,16);
             }
         }
         public static string ControllerTitle { get { return Identity+".Controller"; } }

@@ -81,7 +81,7 @@ namespace PocketGrid
             string temporary=path+"."+Guid.NewGuid().ToString("N")+".lnk";
             try
             {
-                Pinning.Create(temporary,executable,"--background","MS Beatuty Capsule Portable",executable,"MS.BeatutyCapsule");
+                Pinning.Create(temporary,executable,"--background","M-Capsule",executable,"M.Capsule");
                 if(!String.Equals(ReadLink(temporary),command,StringComparison.OrdinalIgnoreCase))throw new IOException("自启快捷方式核验失败。");
                 if(File.Exists(path))File.Replace(temporary,path,null);else File.Move(temporary,path);
             }
@@ -97,6 +97,19 @@ namespace PocketGrid
             if(!enabled||!current.Enabled)current.Set(enabled);
             // Retire only this copy's old Run value, after the shortcut has been verified.
             new StartupRegistration(legacy,executable).Set(false);
+        }
+        public static void RetireOldName(IStartupStore legacyRegistry,string oldExecutable,string oldShortcut)
+        {
+            new StartupRegistration(legacyRegistry,oldExecutable).Set(false);
+            if(File.Exists(oldShortcut))
+            {
+                string oldCommand="\""+Path.GetFullPath(oldExecutable)+"\" --background";
+                // A damaged or foreign legacy shortcut must not prevent the verified new startup entry.
+                string actual;
+                try{actual=ShortcutStartupStore.ReadLink(oldShortcut);}
+                catch(Exception ex){StartupLog.Write("Legacy startup shortcut left unchanged: "+ex.Message);return;}
+                if(String.Equals(actual,oldCommand,StringComparison.OrdinalIgnoreCase))File.Delete(oldShortcut);
+            }
         }
     }
 }

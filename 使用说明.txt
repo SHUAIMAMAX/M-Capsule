@@ -1,88 +1,33 @@
-MS Beatuty Capsule 1.1.0 绿色便携版
+M-Capsule 1.2.0 · Windows 11 x64 绿色便携版
 
-一、运行
-将整个 ZIP 解压到当前用户可写的固定文件夹，然后运行 MSBeatutyCapsule.exe。
-无需安装、管理员权限或后台服务；需要 Windows 11 x64 和 .NET Framework 4.8。
-请保留 vendor 文件夹。运行前请退出旧安装版和其他便携副本。
-本版仅有正式程序，不附带沙箱预览程序。
+【首次运行】将完整 ZIP 解压到当前用户可写的固定文件夹，运行 M-Capsule.exe。保留 M-Capsule.exe.config、vendor 和运行后生成的整个 Data。需要 .NET Framework 4.8；无需安装、管理员权限或单独下载源码。请勿同时运行旧版。
 
-二、真正开机自启
-首次运行正式程序时，默认登记当前用户登录后的开机自启；不需要再勾选。
-它在当前用户的 Windows 启动文件夹中创建“MS Beatuty Capsule Portable.lnk”，
-目标为当前文件夹的 MSBeatutyCapsule.exe --background，工作目录也设为便携目录。
-创建后会读回核验；只有核验成功才清理同一路径旧版的 Run 注册值。
-可以按 Win+R 输入 shell:startup，查看这个快捷方式。
-以后登录时按 Data\Config\configuration.xml 恢复胶囊、位置、任务栏模式和自启选择。
-托盘菜单可以取消或重新勾选“开机自动启动”，选择也会保存在配置中。
-请勿只移动 EXE；移动整个文件夹后在新位置运行一次，程序会更新自启路径。
-Windows 的任务管理器或组织策略可能另行禁用启动项，无法仅凭程序内设置保证系统实际执行。
-托盘“检查/修复开机自启…”可以重新登记，并显示实际目标和配置目录。
-Data\Logs\startup.log 记录每次进入程序、首个胶囊绘制耗时、重复实例退出、登记结果、初始化失败和桌面就绪。
-本版先绘制胶囊，再检查自启登记和加载托盘图标。Windows 可能延迟执行启动文件夹项目，无法保证登录后立即运行。
-登录早期桌面尚未就绪时，每半秒重试定位，最长 60 秒；一旦成功就停止重试。
-升级请退出旧程序，把新 EXE 覆盖到原文件夹，保留 Data 与 vendor，再运行一次新版完成登记。
+【从旧版升级】本版改了 EXE 文件名，v1.1.0 或更早版本不能只替换 EXE。先从托盘退出旧版并备份整个 Data，再把本版完整 ZIP 解压到旧便携目录，不删除 Data。运行 M-Capsule.exe，检查原有胶囊与配置。新版会登记并核验 M-Capsule.lnk，然后清理仅指向同目录旧版 EXE 的启动项。确认正常后，可手动删旧 MSBeatutyCapsule.exe 和相应 .config。移动位置时带上整个 Data，在新位置运行一次以更新自启目标。
 
-三、桌面胶囊
-鼠标悬停在桌面胶囊上 0.5 秒自动展开，单击也可展开；双击条目用 Windows 默认程序打开目标。
-可拖入照片、文档、音视频、压缩包、程序、.lnk/.url、无扩展名文件和文件夹。
-单个文件不超过 5 MiB（5×1024×1024 字节）会复制到 Data\Capsules；超过 5 MiB 的文件和文件夹只保存原路径引用。
-小文件和快捷方式复制后，即使删除桌面上的原件，胶囊内副本仍在；删除胶囊条目不会删除原件。
-大文件或文件夹的原路径移动、删除或外置盘断开后，条目仍显示，但打开时会提示路径不可用。
-旧版保存为引用的现存小文件会在第一个胶囊显示后逐项复制到胶囊；原文件已丢失的旧引用不会自动恢复。
-鼠标位于覆盖桌面的其他窗口时，不会触发胶囊展开。
-新建和拖动后会读取桌面图标格距，胶囊首行与图标首行对齐，可放在图标已有的格子；读取失败时回退到固定网格。
-桌面活动时每约 2 秒检查一次图标格距与位置；鼠标滚轮调整桌面图标大小后会按新格距重新吸附。
-新胶囊默认位置会参考图标分布：图标稀疏放中央；密集且偏左放右侧中间；密集且偏上放下方中间。
-胶囊位于桌面图标上方，重叠时仍可见和拖动；如遮住原图标，可将胶囊拖到别处。
-重新登录后从配置恢复位置；实际 Shell 网格和多屏效果仍需在你的桌面验证。
-展开面板随快捷方式数量增减，不显示滚动条；多到屏幕放不下时用底部翻页按钮。
-展开面板改用独立的半透明壁纸毛玻璃：读取当前静态桌面壁纸，按面板实际屏幕位置取样并模糊，
-再以约 82% 不透明度合成背景；文字和图标本身保持清晰。它不依赖旧版的系统 Acrylic 调用。
-支持多屏、不同缩放比例，以及填充、适应、拉伸、居中、平铺、跨屏壁纸位置。
-读取和模糊在后台进行，面板改变大小或位置时重新对齐。不会截取屏幕、保存桌面截图或修改壁纸。
-无法读取壁纸时保留半透明深色罩层，不再回退成近乎不透明的黑底。
-这是针对桌面胶囊的壁纸毛玻璃，不会实时模糊背后的其他应用或视频/动态壁纸；每次展开重新读取壁纸设置。
-程序及托盘图标改为戴墨镜的胶囊；桌面胶囊图案保持原样。
-桌面胶囊保持在桌面层之上；点击右下角“显示桌面”时，程序还会在短时间内恢复被系统最小化或隐藏的胶囊。
-右键胶囊或托盘选择“更名或删除胶囊…”，在列表中点名称更名，点“删除”删除。
-管理列表和弹出的“胶囊更名”窗口都可替换/还原该胶囊的桌面图标。支持 PNG、JPG/JPEG、BMP、ICO；
-建议 256×256 正方形，最长边不超过 1024 像素，文件不超过 2 MiB。选取后确认才会保存。
-图标缩小保存在 Data\Icons，原图片不受影响。默认胶囊图提供 130 种颜色，在每个胶囊的“换色/透明度”中选择，并可调图标透明度 0–100%；默认 100% 不透明，名称仍保持可见。
-上传自定义图后换色暂不可用；先点“还原胶囊图”，再调整颜色和透明度。外观选择会保存在 Data 配置中。
-胶囊只放在桌面；本版不会添加新的任务栏固定入口。
-原文件、文件夹、快捷方式和目标应用不会因为删除胶囊条目而被删除；胶囊内的小文件副本会被移除。
+【桌面胶囊】在胶囊上悬停约 0.5 秒展开；双击条目交给 Windows 默认程序。拖入文件会复制到 Data\Capsules，不限制文件大小；源文件之后被删除，副本仍在。文件夹只保存路径引用。旧版遗留的小文件引用会逐项迁移；已丢失的旧路径仍需手动恢复。拖出条目到桌面或资源管理器，目标接受后胶囊会移除该条目，文件副本进入回收站；旧版引用只从胶囊移除。拖入是复制，拖出是从胶囊移走。大文件复制可能暂时占用界面，请预留磁盘空间。
 
-四、任务栏外观
-托盘菜单提供“正常”“毛玻璃”“全透明”。
-“毛玻璃”参考 TranslucentTB 2026.2，使用 ExplorerTAP 的 SetTaskbarBlur。
-“全透明”使用透明 SolidColorBrush；“正常”恢复系统默认效果。
-任务栏服务在 Explorer 初始化时可能尚未准备好，程序会短时重试；
-调用记录在 Data\Logs\taskbar.log。日志证明请求已发送，不等于视觉效果已验证。
-如果另一份 TranslucentTB 正在运行，请先退出它，以免两套外观互相覆盖。
+【胶囊管理】右键通知区图标，首选“◆ 胶囊管理 · Capsule Manager”。点击胶囊名称更名。复选多个胶囊后可批量删除、统一上传图片、统一设置颜色和透明度。自定义图片胶囊不能换色，需先还原默认图。右上角“⚙ 文/A”依次切换中文、英语、日语，选择保存在 Data。默认图有 130 种颜色，图标透明度可选 0–100%，默认 100% 不透明。自定义图支持 PNG/JPEG/BMP/ICO，最大 2 MiB、最长边 1024 像素，建议 256×256 正方形，上传确认后保存。
 
-五、数据与退出
-配置、备份、自定义图标、新版小文件副本、旧版快捷方式副本和效果组件缓存都在程序旁的 Data 文件夹。
-迁移时保留整个文件夹；程序不主动读取旧安装版的注册表配置。
-退出：托盘图标右键→退出。
-删除：托盘右键→“清理自启并退出”，确认程序退出后，按需备份 Data，再删除便携文件夹。普通“退出”会保留自启选择。
-“清理自启并退出”只清理指向当前便携副本的启动快捷方式；清理或保存失败时会提示并保持程序运行。
-如果已经删除程序但启动快捷方式仍在，按 Win+R 输入 shell:startup，手动删除 MS Beatuty Capsule Portable.lnk；不要动其他程序的快捷方式。
-Explorer 可能在注销前仍占用 Data\Runtime 中的 DLL；遇到占用时请注销后再移动或删除。
+【终极整理模式】默认关闭，只有在托盘明确点击并确认后运行。选择“否”不改变任何文件。选择“是”后，把当前用户桌面顶层可见的普通文件和快捷方式移入桌面的“胶囊整理”文件夹，打开并尝试排到左半屏，右半屏每次新建 5 个随机色胶囊。已有“胶囊整理”时复用；同名文件加序号，绝不覆盖。已有文件夹、隐藏/系统项目及公共桌面项目不会移动。移动中途失败会尝试回退；进程被强制终止或同步软件同时更改文件时，手动核查桌面和整理文件夹。左半屏只是窗口位置调整，不创建 Windows Snap 分组。
 
-六、终极整理模式（可选）
-右键任务栏通知区的胶囊图标→“终极整理模式…”。此功能默认不开，首次运行和每次开机均不会自行执行。
-程序先只读取当前用户桌面并弹出确认框；选择“否”不创建文件夹、不移动文件、不增加胶囊。
-选择“是”后，在当前用户桌面新建“胶囊整理”，把桌面顶层可见的普通文件与快捷方式移动进去；
-已有文件夹、隐藏/系统文件、公共桌面项目不移动。如果“胶囊整理”已存在，直接停止，避免覆盖。
-移动中途失败会按逆序将已移动的文件退回桌面；若极少数文件未能回退，会提示并保留在“胶囊整理”中供手动处理。
-然后尝试在资源管理器打开该文件夹，把窗口调整到所在屏幕左半边，并在右半边中央一带生成 5 个随机颜色胶囊。
-这里使用窗口大小与位置调整，不创建 Windows Snap 分组；部分 Explorer 版本可能无法自动定位，可手动调整。
-请先确认当前桌面是否有正在同步或使用中的文件；整理完成后可按需要把文件从“胶囊整理”移回桌面。
+【开机自启和退出】默认在当前 Windows 用户登录后自启。程序在当前用户启动文件夹创建 M-Capsule.lnk，指向本目录 M-Capsule.exe --background，并读回核验；配置、胶囊位置与自启选择存在 Data。托盘可开关和检查/修复。Windows 设置、策略或启动项目排队仍可能影响实际执行速度。停用前选择“清理自启并退出”；若软件已删除，可按 Win+R 输入 shell:startup，仅删除本程序的 M-Capsule.lnk 或旧版 MS Beatuty Capsule Portable.lnk。普通退出保留自启设置。日志见 Data\Logs\startup.log 和 taskbar.log，公开前检查个人路径。
 
-七、验证边界
-本版通过 302 项无界面测试，其中终极整理模式在隔离临时目录验证了确认“否”、正常移动、冲突保护和中途失败回退；
-资源管理器左半屏布局只验证几何计算，未对用户实际桌面、Explorer 窗口或 Windows Snap 做实机操作。
-按照你的要求，开发过程没有启动正式程序、写入你电脑的真实自启或修改真实任务栏。
-离屏图像检查确认新背景保留透明通道并能模糊壁纸，不能替代你电脑上的实际窗口验收。
-真实登录后自启、显示桌面的出现速度、悬停命中和任务栏视觉效果尚待实际使用验证；不能保证没有 bug。
-正常使用无需下载源码。完整对应源码及第三方源码见同一 GitHub Release 中单独提供的 Source.zip，便携包内不再嵌套源码包。GPL-3.0。
+【外观和范围】展开面板使用静态壁纸取样并模糊，不截取其他窗口或动态壁纸；任务栏正常、毛玻璃、全透明依赖 Windows Explorer 环境。目标系统为 Windows 11 x64；Windows 10 和 ARM64 未系统验证，macOS/Linux 不提供。开发仅运行隔离无界面测试，未控制真实桌面、任务栏或启动文件夹；实际拖放和显示仍需使用反馈。项目按 GPL-3.0 发布，源码 ZIP 单独提供，普通运行不需要。
+
+---
+
+M-Capsule 1.2.0 · Portable for Windows 11 x64
+
+[First run] Extract the complete ZIP into a fixed user-writable folder and run M-Capsule.exe. Keep M-Capsule.exe.config, vendor, and all of Data created at runtime. .NET Framework 4.8 is required. No installer, administrator rights, or separate source download is needed. Do not run the old version alongside it.
+
+[Upgrade] The EXE has a new name, so users of v1.1.0 or earlier cannot upgrade by replacing only an EXE. Exit the old app and back up all of Data. Extract the full new ZIP into the same portable folder without deleting Data. Run M-Capsule.exe and check your capsules and preferences. The app registers and verifies M-Capsule.lnk, then retires old startup entries pointing to the former EXE in that same directory. After checking, you may manually remove MSBeatutyCapsule.exe and its matching .config. When relocating, move the entire Data directory and run the app once in the new location.
+
+[Desktop capsules] Hover for about 0.5 seconds to expand; double-click an entry to open it with Windows. Imported files of any size are copied into Data\Capsules and survive removal of the original. Folders remain path references. Existing small-file references from older versions migrate gradually; missing source paths require manual recovery. Drag an entry to Explorer or the desktop: after a successful drop the capsule removes it and its stored copy goes to the Recycle Bin; old references are removed from the capsule only. Dragging in copies; dragging out removes from the capsule. Allow disk space for large copies, which may briefly occupy the UI.
+
+[Capsule Manager] Right-click the tray icon and select “◆ Capsule Manager.” Click a name to rename it. Select multiple capsules to batch-delete, apply one image, or set one color and opacity. Restore the default image before coloring a capsule with a custom image. “⚙ 文/A” cycles Chinese, English, and Japanese; the selection is saved in Data. Default artwork has 130 colors and 0–100% opacity, initially 100%. Custom images accept PNG/JPEG/BMP/ICO up to 2 MiB and 1024 pixels on the longest side; 256×256 square is recommended. Confirm the image before saving.
+
+[Ultimate Organizing Mode] Off by default; it runs only after a tray-menu action and confirmation. Choosing No changes nothing. Choosing Yes moves ordinary, visible, top-level files and shortcuts on the current user's Desktop into its 胶囊整理 folder, opens the folder, attempts to place Explorer on the left, and creates five new random-color capsules on the right every time. An existing organizing folder is reused, and colliding filenames are numbered without overwriting. Existing folders, hidden/system items, and Public Desktop items stay put. A mid-operation failure attempts rollback; after a forced exit or concurrent sync changes, check both the Desktop and organizing folder. Left-half placement resizes/moves a window; it does not create a Windows Snap group.
+
+[Startup and exit] Launch at the current user's sign-in is enabled by default. The app creates M-Capsule.lnk in that user's Startup folder, targeting this copy's M-Capsule.exe --background, and verifies it. Preferences and capsule positions live in Data. The tray can toggle and inspect/repair startup. Windows settings, policy, and Startup scheduling can still affect actual launch timing. Choose “Clean startup and exit” before removal. If the app is already gone, use Win+R → shell:startup and remove only its M-Capsule.lnk or old MS Beatuty Capsule Portable.lnk. Ordinary exit preserves the startup choice. Logs are in Data\Logs; inspect personal paths before sharing them.
+
+[Appearance and scope] The panel samples and blurs a static wallpaper rather than capturing other windows or live wallpaper. Normal, blurred, and clear taskbar modes depend on Windows Explorer. Target system: Windows 11 x64; Windows 10 and ARM64 are unverified, and macOS/Linux builds are unavailable. Development used isolated headless tests only, without operating the real desktop, taskbar, or Startup folder. Actual drag/drop and visuals still need user feedback. GPL-3.0 source is supplied separately; it is not needed to run the app.

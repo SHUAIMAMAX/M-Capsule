@@ -69,7 +69,7 @@ public static class ReferenceTests
             string boundary=Path.Combine(root,"boundary.bin");using(var stream=File.Create(boundary))stream.SetLength(ShortcutStore.CopyLimitBytes);
             var atLimit=store.Add(imported,boundary);check(atLimit.Extension==".copy"&&new FileInfo(store.EntryPath(imported,atLimit)).Length==ShortcutStore.CopyLimitBytes,"exactly 5 MiB is copied");
             string large=Path.Combine(root,"large.bin");using(var stream=File.Create(large))stream.SetLength(ShortcutStore.CopyLimitBytes+1);
-            var mapped=store.Add(imported,large);check(mapped.IsReference&&store.EntryPath(imported,mapped)==large,"over 5 MiB remains path reference");
+            var mapped=store.Add(imported,large);check(mapped.Extension==".copy"&&new FileInfo(store.EntryPath(imported,mapped)).Length==ShortcutStore.CopyLimitBytes+1,"over 5 MiB is copied without a size cutoff");
             var loadedCopies=new Preferences();loadedCopies.Capsules.Add(imported);var copiesRoundtrip=Logic.Deserialize(Logic.Serialize(loadedCopies));
             check(File.Exists(store.EntryPath(copiesRoundtrip.Capsules[0],copiesRoundtrip.Capsules[0].Items[0])),"copied file survives configuration reload");
             check(reject(()=>Logic.Deserialize(Logic.Serialize(loadedCopies).Replace("<StoredName>photo.jpg</StoredName>","<StoredName>..\\escape.jpg</StoredName>"))),"reject copied-file traversal");
@@ -77,6 +77,17 @@ public static class ReferenceTests
             check(recoveredCopies.Capsules.Any(x=>x.Id==imported.Id&&x.Items.Any(y=>y.Extension==".copy"&&y.StoredName=="photo.jpg")),"recover copied file from storage");
             int ownedRecycled=0;store.Remove(imported,new[]{photo,ownedShortcut},path=>{ownedRecycled++;Directory.Delete(path,true);});
             check(ownedRecycled==2&&File.Exists(large),"removing copies never deletes source");
+            string copyOut=Path.Combine(root,"copy-out.bin");File.Copy(store.EntryPath(imported,mapped),copyOut);
+            store.RemoveTransferred(imported,new[]{mapped},path=>Directory.Delete(path,true));
+            check(File.Exists(copyOut)&&File.Exists(large)&&!imported.Items.Contains(mapped),"successful drag-copy removes capsule copy and preserves exported file and original");
+            string moveSource=Path.Combine(root,"move-source.exe");File.WriteAllText(moveSource,"program bytes");
+            var moveEntry=store.Add(imported,moveSource);string movedOut=Path.Combine(root,"moved-out.exe");
+            File.Move(store.EntryPath(imported,moveEntry),movedOut);
+            store.RemoveTransferred(imported,new[]{moveEntry},path=>{throw new Exception("moved source must not be recycled");});
+            check(File.ReadAllText(movedOut)=="program bytes"&&!imported.Items.Contains(moveEntry),"successful drag-move removes empty capsule storage only");
+            var oldReference=store.AddReference(imported,directory);string folderOut=Path.Combine(root,"folder-out");Directory.CreateDirectory(folderOut);
+            store.RemoveTransferred(imported,new[]{oldReference},path=>{throw new Exception("reference original must not be recycled");});
+            check(Directory.Exists(directory)&&Directory.Exists(folderOut)&&!imported.Items.Contains(oldReference),"dragging old reference out never deletes source folder");
             string migrationFile=Path.Combine(root,"migrate.url");File.WriteAllText(migrationFile,"migration");
             var toMigrate=store.AddReference(imported,migrationFile);
             check(store.MigrateSmallReference(imported,toMigrate),"old small reference migrates to copy");

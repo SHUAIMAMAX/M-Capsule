@@ -10,7 +10,10 @@ namespace PocketGrid
     {
         public const long MaxBytes=2*1024*1024;
         public const int MaxDimension=1024;
-        public const string Hint="支持 PNG、JPG/JPEG、BMP、ICO；建议正方形 256×256 像素。最长边不超过 1024 像素，文件不超过 2 MiB。确认后保存到便携版 Data/Icons；原图片不受影响。";
+        public static string Hint { get { return Lang.Text(
+            "支持 PNG、JPG/JPEG、BMP、ICO；建议正方形 256×256 像素。最长边不超过 1024 像素，文件不超过 2 MiB。确认后保存到便携版 Data/Icons；原图片不受影响。",
+            "PNG, JPG/JPEG, BMP or ICO. A square 256×256 image is recommended; max side 1024 px, max file 2 MiB. A copy is saved in Data/Icons; the original stays unchanged.",
+            "PNG、JPG/JPEG、BMP、ICO に対応。256×256 の正方形を推奨。最大辺 1024 px、ファイル 2 MiB 以下。Data/Icons にコピーし、元画像は変更しません。"); } }
         static readonly string[] extensions={".png",".jpg",".jpeg",".bmp",".ico"};
         public static string FilePath(string dataDirectory,Capsule capsule)
         {
@@ -34,7 +37,11 @@ namespace PocketGrid
         }
         public static void Save(string dataDirectory,Capsule capsule,string source)
         {
-            var image=Decode(source);
+            SaveImage(dataDirectory,capsule,Decode(source));
+        }
+        public static void SaveImage(string dataDirectory,Capsule capsule,BitmapSource image)
+        {
+            if(image==null)throw new ArgumentNullException("image");
             string destination=FilePath(dataDirectory,capsule),dir=Path.GetDirectoryName(destination);
             Directory.CreateDirectory(dir);
             string temp=destination+"."+Guid.NewGuid().ToString("N")+".tmp";

@@ -1,5 +1,13 @@
 # 更新记录
 
+## v1.2.0
+
+- 全面更名为 M-Capsule，包括程序、EXE、发布包和仓库；旧版升级需完整 ZIP，并保留 `Data`。
+- 胶囊管理加入复选与批量删除、统一图片、统一颜色/透明度；增加中文、英语、日语切换。
+- 新拖入的文件不限大小，默认复制到胶囊；支持从胶囊拖出并在目标接收后移除条目。
+- 终极整理模式每次新建五个胶囊，复用已有整理文件夹，同名文件加序号且不覆盖。
+- 完整便携 ZIP 不到 0.7 MB，源码 ZIP 保持独立。
+
 ## v1.1.0
 
 - 胶囊与桌面图标重叠时保持可见；新胶囊根据桌面图标分布选择中央、右侧中间或下方中间位置。
@@ -54,3 +62,40 @@
 ## 更早版本
 
 逐步加入便携运行、本地配置恢复、网格对齐、列表更名和删除、无滚动条的自适应面板及基础任务栏外观。
+
+---
+
+# Changelog — English
+
+## v1.2.0
+
+- Renamed the product, EXE, release files, and repository to M-Capsule. Upgrades from the old name require the full ZIP while preserving `Data`.
+- Added multiselection in Capsule Manager for batch deletion, one image, or one color/opacity, plus Chinese, English, and Japanese UI switching.
+- New files of any size are copied into capsules; dragging entries out removes them after an accepted drop.
+- Ultimate Organizing Mode creates five new capsules on each run, reuses the existing organizing folder, and numbers filename collisions without overwriting.
+- The complete portable ZIP stays under 0.7 MB; the source ZIP remains separate.
+
+## v1.1.0
+
+- Kept capsules visible over desktop icons and placed new capsules according to desktop icon distribution.
+- Added an explicitly confirmed Ultimate Organizing Mode that moves visible ordinary Desktop files to an organizing folder, opens it on the left, and creates five capsules on the right.
+- Added rollback on move failure and isolated tests. This release originally stopped when the organizing folder already existed; v1.2.0 changes that behavior.
+
+## v1.0.2
+
+- Copied files up to 5 MiB into capsules while larger files and folders remained path references. v1.2.0 removes the size limit for new file imports.
+- Migrated reachable small-file references gradually and retained missing references.
+
+## v1.0.1
+
+- Aligned capsules to the desktop icon grid, including its first row and occupied cells, and tracked icon-size changes.
+- Corrected default capsule artwork opacity.
+
+## v1.0.0
+
+- Added 130 capsule colors and 0–100% icon opacity, with custom images taking precedence until restored.
+- Added “Clean startup and exit” and configuration-preserving migration guidance.
+
+## v0.6.6 and earlier
+
+- Gradually added portable local configuration, file references, desktop-grid placement, image replacement, list-based management, wallpaper-sampled translucent glass, sign-in startup verification, hover expansion, Show Desktop recovery, adaptive panels, and taskbar appearance options. Earlier versions had different copy/reference behavior; the current instructions govern new imports.

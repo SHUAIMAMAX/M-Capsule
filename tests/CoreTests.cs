@@ -32,6 +32,9 @@ try
     Check(restored.Capsules[0].Name==c.Name&&restored.Capsules[0].Items[0].Id==b.Id,"Names and managed-copy identity survive serialization");
     Check(restored.TaskbarMode=="acrylic"&&restored.NextColor==2,"Taskbar mode and palette sequence persist");
     Check(restored.StartWithWindows,"autostart preference survives XML round trip");
+    p.Language="ja";Check(Logic.Deserialize(Logic.Serialize(p)).Language=="ja","Japanese interface choice persists");
+    p.Language="unknown";Check(Logic.Deserialize(Logic.Serialize(p)).Language=="zh","invalid interface language falls back to Chinese");
+    p.Language="zh";Check(Lang.Next(Lang.Next(Lang.Next("zh")))=="zh","language switch cycles Chinese English Japanese");
     c.ColorIndex=129;c.IconOpacityPercent=0;
     var tinted=Logic.Deserialize(Logic.Serialize(p));
     Check(tinted.Capsules[0].ColorIndex==129&&tinted.Capsules[0].IconOpacityPercent==0,"chosen color and zero opacity persist");

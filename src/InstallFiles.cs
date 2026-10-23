@@ -8,9 +8,9 @@ namespace PocketGrid
 {
     public static class InstallFiles
     {
-        public const string Product="MS Beatuty Capsule";
+        public const string Product="M-Capsule";
         public const string Marker=".msbc-install";
-        public static readonly string[] OwnedFiles={"MSBeatutyCapsule.exe","MSBeatutyCapsule.exe.config","MS-Beatuty-Capsule-Source.zip","LICENSE.txt","THIRD-PARTY-NOTICES.txt","使用说明.txt","vendor/ExplorerTAP.dll","vendor/Detours-LICENSE.txt","vendor/WIL-LICENSE.txt",Marker};
+        public static readonly string[] OwnedFiles={"M-Capsule.exe","M-Capsule.exe.config","M-Capsule-Source.zip","LICENSE.txt","THIRD-PARTY-NOTICES.txt","使用说明.txt","vendor/ExplorerTAP.dll","vendor/Detours-LICENSE.txt","vendor/WIL-LICENSE.txt",Marker};
         public static string Normalize(string path)
         {
             if(String.IsNullOrWhiteSpace(path)||!Path.IsPathRooted(path))throw new IOException("请选择完整的安装路径。");

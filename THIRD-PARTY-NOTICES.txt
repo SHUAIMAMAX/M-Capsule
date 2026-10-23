@@ -1,4 +1,10 @@
-MS Beatuty Capsule 1.1.0 Portable
+M-Capsule 1.2.0 · 第三方声明
+
+本程序按 GNU GPL v3 发布，全文见 LICENSE.txt。任务栏功能使用未经修改的 TranslucentTB 2026.2 ExplorerTAP.dll；对应上游源码、许可和构建文件见单独源码包的 vendor 目录。本项目是独立项目，不属于 TranslucentTB 或 Microsoft 官方产品。Microsoft Detours 与 Windows Implementation Libraries 的版本、许可及来源见下方英文完整清单。便携包不附带 .NET Framework 或 Windows 系统库。
+
+---
+
+M-Capsule 1.2.0 Portable
 
 This distribution is licensed under GNU GPL version 3. See LICENSE.txt.
 
@@ -12,7 +18,7 @@ Bundled source: vendor/TranslucentTB-2026.2-source.zip in this repository and th
 DLL SHA256: c48f1a06168acd7839269dde0d15ccf5d09c702512b94dd6ba9a05df1b153dc2
 License: GPL-3.0; full upstream notices and build files are in the source archive.
 The taskbar integration calls the published ExplorerTAP interface from C#.
-MS Beatuty Capsule is an independent project, not an official TranslucentTB or Microsoft product.
+M-Capsule is an independent project, not an official TranslucentTB or Microsoft product.
 
 .NET Framework and Windows system libraries are prerequisites provided by Microsoft,
 not redistributed in this portable package. Build-only NuGet reference assemblies are not included.

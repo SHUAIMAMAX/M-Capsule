@@ -9,7 +9,7 @@ namespace PocketGrid
 {
     internal static class Ui
     {
-        public const string Product = "MS Beatuty Capsule";
+        public const string Product = "M-Capsule";
         public static SolidColorBrush Brush(byte a, byte r, byte g, byte b) { return new SolidColorBrush(Color.FromArgb(a,r,g,b)); }
         public static readonly Brush White = Brush(255,245,247,252), Muted = Brush(255,176,185,201);
         public static TextBlock Text(string text, double size, Brush color)
@@ -36,8 +36,8 @@ namespace PocketGrid
             var stack=new StackPanel { Margin=new Thickness(20) };
             var input=new TextBox { Text=previous, MaxLength=40, FontSize=16, Padding=new Thickness(8), Margin=new Thickness(0,0,0,14) };
             var row=new StackPanel { Orientation=Orientation.Horizontal, HorizontalAlignment=HorizontalAlignment.Right };
-            var cancel=new Button { Content="取消", Width=70, Height=30, IsCancel=true, Margin=new Thickness(0,0,8,0) };
-            var ok=new Button { Content="确定", Width=70, Height=30, IsDefault=true };
+            var cancel=new Button { Content=Lang.Text("取消","Cancel","キャンセル"), Width=70, Height=30, IsCancel=true, Margin=new Thickness(0,0,8,0) };
+            var ok=new Button { Content=Lang.Text("确定","OK","決定"), Width=70, Height=30, IsDefault=true };
             ok.Click+=(s,e)=>{ if (!String.IsNullOrWhiteSpace(input.Text)) w.DialogResult=true; };
             if(hasIcon)
             {
@@ -46,9 +46,9 @@ namespace PocketGrid
                 var image=new Image{Source=currentIcon(),Width=48,Height=48,Stretch=Stretch.Uniform,Margin=new Thickness(0,0,10,0),
                     Opacity=hasCustomIcon()!=true?opacityPercent()/100.0:1};
                 var iconRow=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(0,0,0,14)};
-                var replace=new Button{Content="替换图标…",Width=90,Height=32,Margin=new Thickness(0,8,8,0)};
-                var restore=new Button{Content="还原胶囊图",Width=95,Height=32,Margin=new Thickness(0,8,8,0)};
-                var color=new Button{Content="换色/透明度…",Width=114,Height=32,Margin=new Thickness(0,8,0,0),IsEnabled=!hasCustomIcon()};
+                var replace=new Button{Content=Lang.Text("替换图标…","Set image…","画像を変更…"),Width=100,Height=32,Margin=new Thickness(0,8,8,0)};
+                var restore=new Button{Content=Lang.Text("还原胶囊图","Restore image","画像を戻す"),Width=105,Height=32,Margin=new Thickness(0,8,8,0)};
+                var color=new Button{Content=Lang.Text("换色/透明度…","Color/opacity…","色・透明度…"),Width=125,Height=32,Margin=new Thickness(0,8,0,0),IsEnabled=!hasCustomIcon()};
                 Action refresh=()=>{image.Source=currentIcon();image.Opacity=hasCustomIcon()?1:opacityPercent()/100.0;color.IsEnabled=!hasCustomIcon();};
                 replace.Click+=(s,e)=>{replaceIcon();refresh();};
                 restore.Click+=(s,e)=>{restoreIcon();refresh();};

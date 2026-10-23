@@ -52,7 +52,7 @@ namespace PocketGrid
             var value = new PropVariant { Type = 31, Pointer = Marshal.StringToCoTaskMemUni(text) };
             try { Marshal.ThrowExceptionForHR(store.SetValue(ref key, ref value)); } finally { Marshal.FreeCoTaskMem(value.Pointer); }
         }
-        public static string AppId(Capsule c) { return "MS.BeatutyCapsule." + c.Id; }
+        public static string AppId(Capsule c) { return "M.Capsule." + c.Id; }
         public static string Make(Capsule c)
         {
             string directory = Path.Combine(Settings.DataDirectory, "Pins", c.Id);

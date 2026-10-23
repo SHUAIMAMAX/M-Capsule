@@ -34,6 +34,7 @@ namespace PocketGrid
         public int NextColor { get; set; }
         public string TaskbarMode { get; set; } = "normal";
         public bool StartWithWindows { get; set; } = true;
+        public string Language { get; set; } = "zh";
         public List<Capsule> Capsules { get; set; } = new List<Capsule>();
     }
     public sealed class GridSize
@@ -107,6 +108,7 @@ namespace PocketGrid
                 }
                 p.Version=4;
                 if (!new[] { "normal", "acrylic", "clear" }.Contains(p.TaskbarMode)) p.TaskbarMode = "normal";
+                p.Language=PocketGrid.Lang.Normalize(p.Language);
                 p.NextColor = Math.Max(0, p.NextColor);
                 if (p.Revision < 0 || p.Revision == long.MaxValue) throw new InvalidDataException("配置序号无效。");
                 return p;
@@ -178,7 +180,6 @@ namespace PocketGrid
             if(Directory.Exists(target))return AddReference(c,target);
             var info=new FileInfo(target);
             if(!info.Exists)throw new IOException("文件不存在或暂时无法访问。");
-            if(info.Length>CopyLimitBytes)return AddReference(c,target);
             var existing=c.Items.FirstOrDefault(e=>e.Extension==".copy"&&String.Equals(e.TargetPath,target,StringComparison.OrdinalIgnoreCase));
             if(existing!=null)return existing;
             if(c.Items.Count>=Logic.MaxItems)throw new IOException("每个胶囊最多放 512 个条目。");
@@ -193,10 +194,9 @@ namespace PocketGrid
                 using(var input=new FileStream(target,FileMode.Open,FileAccess.Read,FileShare.Read))
                 using(var output=new FileStream(destination+".pending",FileMode.CreateNew,FileAccess.Write,FileShare.None))
                 {
-                    byte[] buffer=new byte[65536];int read;long total=0;
+                    byte[] buffer=new byte[65536];int read;
                     while((read=input.Read(buffer,0,buffer.Length))>0)
                     {
-                        total+=read;if(total>CopyLimitBytes)throw new IOException("文件复制时超过 5 MiB，请重新拖入以保存引用。");
                         output.Write(buffer,0,read);
                     }
                     output.Flush(true);
@@ -249,6 +249,27 @@ namespace PocketGrid
                     if(Directory.Exists(dir))recycle(dir);
                 }
                 else if (!entry.IsReference && File.Exists(file)) recycle(file);
+                c.Items.Remove(entry);
+            }
+        }
+        public void RemoveTransferred(Capsule c,IEnumerable<Shortcut> entries,Action<string> recycle)
+        {
+            CheckDirectory(Root);CheckDirectory(CapsuleDirectory(c));
+            foreach(var entry in entries.ToArray())
+            {
+                if(!c.Items.Contains(entry))continue;
+                string path=EntryPath(c,entry);
+                if(entry.Extension==".copy")
+                {
+                    string dir=Path.Combine(CapsuleDirectory(c),entry.Id);CheckDirectory(dir);
+                    if(Directory.Exists(dir))
+                    {
+                        if(File.Exists(path))recycle(dir);
+                        else if(!Directory.EnumerateFileSystemEntries(dir).Any())Directory.Delete(dir,false);
+                        else throw new IOException("拖出后存储目录中仍有其他文件，已保留该胶囊条目。");
+                    }
+                }
+                else if(!entry.IsReference&&File.Exists(path))recycle(path);
                 c.Items.Remove(entry);
             }
         }

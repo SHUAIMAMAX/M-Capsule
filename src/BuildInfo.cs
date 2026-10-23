@@ -1,7 +1,7 @@
 using System.Reflection;
-[assembly:AssemblyTitle("MS Beatuty Capsule")]
+[assembly:AssemblyTitle("M-Capsule")]
 [assembly:AssemblyDescription("Desktop capsules with independent shortcut copies")]
-[assembly:AssemblyProduct("MS Beatuty Capsule")]
-[assembly:AssemblyVersion("1.1.0.0")]
-[assembly:AssemblyFileVersion("1.1.0.0")]
+[assembly:AssemblyProduct("M-Capsule")]
+[assembly:AssemblyVersion("1.2.0.0")]
+[assembly:AssemblyFileVersion("1.2.0.0")]
 

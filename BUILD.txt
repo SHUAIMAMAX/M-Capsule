@@ -1,53 +1,25 @@
-MS Beatuty Capsule Portable 1.1.0 — source/build notes
+M-Capsule 1.2.0 · 构建与测试
 
-Original source: supplied MS-Beatuty-Capsule-Source.zip (0.3.0), preserved unchanged.
-Only the real portable app is packaged. No SandboxPreview executable is built.
+目标为 Windows 11 x64 / .NET Framework 4.8。项目由用户提供的旧版源码逐步迭代，原始压缩包保持独立。本发布仅打包正式便携程序；源码 ZIP 单独提供。
 
-Requirements: x64 Windows, .NET Framework 4.8.
-Offline build: run build-local.ps1 using PowerShell 7 with bundled Roslyn assemblies.
-SDK build: run build.ps1 using .NET SDK 8 or newer (not tested in this delivery).
-Package: run package.ps1 with -RuntimeDirectory and a fresh -Destination.
+离线构建：在 Windows 上用 PowerShell 7 运行 `pwsh -NoProfile -File .\build-local.ps1`，需有 Roslyn 编译组件。SDK 构建：运行 `build.ps1`，需 .NET SDK 8 或更新；此发布主要验证离线构建。打包：对新目录运行 `package.ps1 -RuntimeDirectory <build目录> -Destination <新输出目录>`。
 
-Tests compile with build-local.ps1 but never run automatically.
-CoreTests.exe, GridSnapTests.exe and HeadlessPortableTests.exe do not open app windows.
-StartupTests.exe tests startup migration with memory adapters and creates real
-Shell shortcuts only inside its own executable directory; no launch is performed.
-GlassBackdropTests.exe renders synthetic wallpaper and transparent glass offscreen,
-checks pixels and wallpaper positioning, and exports synthetic PNG fixtures.
-It does not capture the desktop or open windows.
-ReferenceTests.exe checks bounded file copies, large-file/folder path mappings,
-legacy reference migration, and deletion protection.
-UltimateOrganizerTests.exe moves only temporary fixture files, verifies rollback,
-No branch, collision protection and half-screen geometry; it never touches the real desktop.
-CustomIconTests.exe checks image limits, portable icon copy, restore, and 130 colors.
-GridSnapTests.exe also checks synthetic Explorer icon cell occupancy.
-PortableTests.exe creates WPF windows; it was not run in this delivery.
-The headless tests use isolated file-backed startup simulation and local test Data.
-They never write the real HKCU Run key or call the real Explorer taskbar API.
+构建脚本生成测试程序，但不会自动执行。无界面隔离测试有 CoreTests、GridSnapTests、HeadlessPortableTests、StartupTests、GlassBackdropTests、ReferenceTests、CustomIconTests、UltimateOrganizerTests。测试目录中的文件、配置和快捷方式是临时样例；不写真实 HKCU Run、用户启动文件夹或桌面，不调用真实任务栏。PortableTests 会打开 WPF 窗口，按使用者要求没有运行。GlassBackdropTests 使用合成壁纸离屏检查像素，不截取真实桌面。
 
-Source map:
- src/Model.cs          XML preferences, including StartWithWindows (default true)
- src/Settings.cs       portable Data directory and storage/recovery
- src/Startup.cs        verified Startup-folder shortcut and legacy Run migration
- src/StartupLog.cs     bounded startup diagnostics beside the app's Data
- src/GlassBackdrop.cs  read-only wallpaper metadata, position mapping, CPU blur and alpha
- src/Manager.cs        desktop UI, tray, startup reconciliation and saved modes
- src/Taskbar.cs        ExplorerTAP bridge; XAML blur and transparent brush
- src/GridSnap.cs       desktop placement and collision avoidance
- src/DesktopIconGrid.cs read-only Explorer desktop grid spacing and icon positions
- src/CustomIcons.cs    bounded PNG/JPEG/BMP/ICO import to local Data/Icons
- src/CapsuleListDialog.cs  list-based rename/delete
- src/app-sunglasses.png generated source artwork for the app/tray icon
- create-app-icon.ps1 converts the artwork to a multi-size ICO
- vendor/               ExplorerTAP binary, source and third-party notices
+关键源码：`src/Model.cs` 处理 XML 配置与文件副本/引用；`src/Settings.cs` 管理便携 Data；`src/Startup.cs` 核验启动快捷方式与旧版迁移；`src/Manager.cs` 管理胶囊、托盘与整理流程；`src/Windows.cs` 处理窗口和拖放；`src/CapsuleListDialog.cs` 提供复选管理与语言入口；`src/UltimateOrganizer.cs` 移动及回退桌面文件；`src/GlassBackdrop.cs` 取样并模糊静态壁纸；`src/Taskbar.cs` 调用 ExplorerTAP。对应第三方源代码和许可在 `vendor` 与声明文件中。
 
-Taskbar mapping follows the bundled TranslucentTB 2026.2 source:
- taskbarattributeworker.cpp uses SetTaskbarBlur for blur and
- SetTaskbarAppearance with SolidColor for clear on Windows 11.
-The ExplorerTAP DLL may remain loaded in Explorer until sign-out.
-No signing certificate is included. See 使用说明.txt for the validation boundary.
+EXE 未签名。展开面板是逐像素透明 WPF 窗口，模糊的是静态壁纸背景，不实时采集背后的窗口或动态壁纸。实际 UI 和登录自启时序须在用户设备验证。
 
-Popup rendering uses a per-pixel-alpha WPF layered window, not DWM Acrylic.
-Only its wallpaper background is blurred. Text/icons are separate foreground content.
-The runtime reads wallpaper files; it does not capture the desktop. Live wallpapers
-and windows behind the popup are not sampled for blur.
+---
+
+M-Capsule 1.2.0 · Build and tests
+
+Target: Windows 11 x64 / .NET Framework 4.8. The project evolved from the older source archive supplied by the user; that original archive is kept separately. This release packages the real portable app, with a separate source ZIP.
+
+For an offline build on Windows, run `pwsh -NoProfile -File .\build-local.ps1` with PowerShell 7 and Roslyn compiler assemblies available. For an SDK build, run `build.ps1` with .NET SDK 8 or later; this release primarily validates the offline build. Package with `package.ps1 -RuntimeDirectory <build folder> -Destination <new output folder>`.
+
+The build compiles but does not automatically run tests. Isolated headless suites are CoreTests, GridSnapTests, HeadlessPortableTests, StartupTests, GlassBackdropTests, ReferenceTests, CustomIconTests, and UltimateOrganizerTests. Their sample files, settings, and shortcuts stay in test directories. They do not write real HKCU Run, the user's Startup folder or Desktop, or call the real taskbar. PortableTests opens WPF windows and was not run at the user's request. GlassBackdropTests uses synthetic wallpaper and offscreen pixel checks; it does not capture the desktop.
+
+Source map: `src/Model.cs` handles XML settings and copied/path-referenced items; `src/Settings.cs` manages portable Data; `src/Startup.cs` verifies startup shortcuts and handles legacy migration; `src/Manager.cs` coordinates capsules, tray, and organizing; `src/Windows.cs` implements windows and drag/drop; `src/CapsuleListDialog.cs` provides multiselection and the language control; `src/UltimateOrganizer.cs` moves and rolls back Desktop files; `src/GlassBackdrop.cs` samples/blurs static wallpaper; and `src/Taskbar.cs` calls ExplorerTAP. Matching third-party source and licenses are in `vendor` and the notices.
+
+The EXE is unsigned. The expanded panel is a per-pixel-alpha WPF window; only its static-wallpaper background is blurred. Windows behind it and live wallpapers are not sampled in real time. Actual UI and sign-in timing require user-device verification.

@@ -32,7 +32,7 @@ namespace PocketGrid
         public CapsuleWindow(Manager manager,Capsule capsule)
         {
             this.manager=manager;Capsule=capsule;
-            Title="MS Beatuty Capsule."+capsule.Id;
+            Title="M-Capsule."+capsule.Id;
             Width=88;Height=98;WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;
             AllowsTransparency=true;Background=Brushes.Transparent;ShowInTaskbar=false;ShowActivated=false;Topmost=false;
             Left=Logic.Clamp(capsule.X,-100000,100000);Top=Logic.Clamp(capsule.Y,-100000,100000);AllowDrop=true;UseLayoutRounding=true;
@@ -44,7 +44,7 @@ namespace PocketGrid
             frame.Child=icon;root.Children.Add(frame);
             label=Ui.Text(capsule.Name,12,Brushes.White);label.HorizontalAlignment=HorizontalAlignment.Center;label.MaxWidth=86;label.TextAlignment=TextAlignment.Center;
             label.Effect=new DropShadowEffect{BlurRadius=4,ShadowDepth=1,Opacity=.9,Color=Colors.Black};Grid.SetRow(label,1);root.Children.Add(label);
-            Content=root;ToolTip="悬停半秒展开 · 拖动后自动对齐桌面网格\n文件不超过 5 MiB 复制进胶囊；更大文件和文件夹保存路径引用";
+            Content=root;
             hoverTimer=new DispatcherTimer(DispatcherPriority.Input){Interval=TimeSpan.FromMilliseconds(500)};
             hoverTimer.Tick+=(s,e)=>
             {
@@ -55,6 +55,7 @@ namespace PocketGrid
             menu=new ContextMenu();
             AddMenu("添加文件…",()=>manager.ChooseFiles(capsule));
             AddMenu("更名或删除胶囊…",()=>manager.ShowCapsuleList());ContextMenu=menu;
+            UpdateLanguage();
             root.MouseEnter+=(s,e)=>{frame.Background=Ui.Brush(25,255,255,255);if(!pressed){hoverTimer.Stop();hoverTimer.Start();}};
             root.MouseLeave+=(s,e)=>{frame.Background=Brushes.Transparent;hoverTimer.Stop();};
             root.MouseLeftButtonDown+=(s,e)=>
@@ -78,15 +79,17 @@ namespace PocketGrid
             DragOver+=(s,e)=>
             {
                 OnDragOver(s,e);
+                if(String.Equals(e.Data.GetData("M-Capsule.InternalDrag") as string,Capsule.Id,StringComparison.OrdinalIgnoreCase))e.Effects=DragDropEffects.None;
                 if(e.Data.GetDataPresent(DataFormats.FileDrop))manager.Open(Capsule,true);
             };
             Drop+=(s,e)=>
             {
-                if(!e.Data.GetDataPresent(DataFormats.FileDrop))return;
-                manager.Add(Capsule,(string[])e.Data.GetData(DataFormats.FileDrop));
+                if(!e.Data.GetDataPresent(DataFormats.FileDrop)||
+                   String.Equals(e.Data.GetData("M-Capsule.InternalDrag") as string,Capsule.Id,StringComparison.OrdinalIgnoreCase))return;
+                bool accepted=manager.Add(Capsule,(string[])e.Data.GetData(DataFormats.FileDrop));
                 if(manager.Popup==null||manager.Popup.Capsule.Id!=Capsule.Id)manager.Open(Capsule);
                 if(manager.Popup!=null)manager.Popup.AcceptDrop();
-                e.Effects=DragDropEffects.Copy;e.Handled=true;
+                e.Effects=accepted?DragDropEffects.Copy:DragDropEffects.None;e.Handled=true;
             };
             SourceInitialized+=(s,e)=>
             {
@@ -98,6 +101,14 @@ namespace PocketGrid
             Closed+=(s,e)=>hoverTimer.Stop();
         }
         void AddMenu(string title,Action action){var item=new MenuItem{Header=title};item.Click+=(s,e)=>action();menu.Items.Add(item);}
+        public void UpdateLanguage()
+        {
+            ToolTip=Lang.Text("悬停半秒展开 · 拖动后自动对齐桌面网格\n拖入文件保存副本；文件夹保存路径引用",
+                "Hover 0.5 s to open · Drag to align with the desktop grid\nDropped files are copied; folders remain linked",
+                "0.5 秒ホバーで開く · ドラッグでグリッドに整列\n追加したファイルはコピー、フォルダーは参照");
+            ((MenuItem)menu.Items[0]).Header=Lang.Text("添加文件…","Add files…","ファイルを追加…");
+            ((MenuItem)menu.Items[1]).Header=Lang.Text("胶囊管理…","Capsule Manager…","カプセル管理…");
+        }
         public static void OnDragOver(object sender,DragEventArgs e)
         {
             e.Effects=e.Data.GetDataPresent(DataFormats.FileDrop)?DragDropEffects.Copy:DragDropEffects.None;e.Handled=true;
@@ -148,6 +159,8 @@ namespace PocketGrid
         int pageIndex,pageSize,pageCount;
         int renderVersion;
         bool closed;
+        Point dragStart;
+        Shortcut dragEntry;
         public bool DragHover { get; set; }
         public readonly Capsule Capsule;
         public bool MenuOpen { get; private set; }
@@ -172,16 +185,16 @@ namespace PocketGrid
             header.Children.Add(new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=26,Height=26,
                 Opacity=capsule.HasCustomIcon?1:capsule.IconOpacityPercent/100.0});
             var heading=Ui.Text(capsule.Name,15,Ui.White);heading.FontWeight=FontWeights.SemiBold;heading.VerticalAlignment=VerticalAlignment.Center;heading.Margin=new Thickness(7,0,8,0);Grid.SetColumn(heading,1);header.Children.Add(heading);
-            var add=Ui.Button("+","一次添加多个文件；不超过 5 MiB 的文件保存副本");add.Width=30;add.Height=30;add.Click+=(s,e)=>manager.ChooseFiles(Capsule);Grid.SetColumn(add,2);header.Children.Add(add);content.Children.Add(header);
+            var add=Ui.Button("+",Lang.Text("一次添加多个文件；拖入的文件保存副本","Add multiple files; imported files are copied","複数のファイルを追加。取り込んだファイルはコピーされます"));add.Width=30;add.Height=30;add.Click+=(s,e)=>manager.ChooseFiles(Capsule);Grid.SetColumn(add,2);header.Children.Add(add);content.Children.Add(header);
             list=new ListBox{Background=Brushes.Transparent,BorderThickness=new Thickness(0),SelectionMode=SelectionMode.Extended,Padding=new Thickness(0),HorizontalContentAlignment=HorizontalAlignment.Center,Foreground=Ui.White,FocusVisualStyle=null};
             ScrollViewer.SetHorizontalScrollBarVisibility(list,ScrollBarVisibility.Disabled);ScrollViewer.SetVerticalScrollBarVisibility(list,ScrollBarVisibility.Disabled);ScrollViewer.SetCanContentScroll(list,false);
             list.ItemContainerStyle=ItemStyle();Grid.SetRow(list,1);content.Children.Add(list);
-            empty=Ui.Text("把文件或文件夹拖进来\n或点右上角 ＋",13,Ui.Muted);empty.TextAlignment=TextAlignment.Center;empty.VerticalAlignment=VerticalAlignment.Center;Grid.SetRow(empty,1);content.Children.Add(empty);
+            empty=Ui.Text(Lang.Text("把文件或文件夹拖进来\n或点右上角 ＋","Drop a file or folder here\nor click +","ファイルやフォルダーをドラッグ\nまたは ＋ をクリック"),13,Ui.Muted);empty.TextAlignment=TextAlignment.Center;empty.VerticalAlignment=VerticalAlignment.Center;Grid.SetRow(empty,1);content.Children.Add(empty);
             var footer=new Grid();footer.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(1,GridUnitType.Star)});
             footer.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});footer.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});
             count=Ui.Text("",10,Ui.Muted);count.VerticalAlignment=VerticalAlignment.Bottom;footer.Children.Add(count);
-            previousPage=Ui.Button("‹","上一页");previousPage.Width=24;previousPage.Height=18;previousPage.FontSize=14;previousPage.Click+=(s,e)=>ChangePage(-1);Grid.SetColumn(previousPage,1);footer.Children.Add(previousPage);
-            nextPage=Ui.Button("›","下一页");nextPage.Width=24;nextPage.Height=18;nextPage.FontSize=14;nextPage.Click+=(s,e)=>ChangePage(1);Grid.SetColumn(nextPage,2);footer.Children.Add(nextPage);
+            previousPage=Ui.Button("‹",Lang.Text("上一页","Previous page","前のページ"));previousPage.Width=24;previousPage.Height=18;previousPage.FontSize=14;previousPage.Click+=(s,e)=>ChangePage(-1);Grid.SetColumn(previousPage,1);footer.Children.Add(previousPage);
+            nextPage=Ui.Button("›",Lang.Text("下一页","Next page","次のページ"));nextPage.Width=24;nextPage.Height=18;nextPage.FontSize=14;nextPage.Click+=(s,e)=>ChangePage(1);Grid.SetColumn(nextPage,2);footer.Children.Add(nextPage);
             Grid.SetRow(footer,2);content.Children.Add(footer);
             list.MouseDoubleClick+=(s,e)=>
             {
@@ -193,8 +206,35 @@ namespace PocketGrid
                 var cell=ItemsControl.ContainerFromElement(list,e.OriginalSource as DependencyObject) as ListBoxItem;
                 if(cell!=null&&!cell.IsSelected){list.SelectedItems.Clear();cell.IsSelected=true;}
             };
-            var menu=new ContextMenu();var open=new MenuItem{Header="打开"};open.Click+=(s,e)=>LaunchSelected();menu.Items.Add(open);
-            var remove=new MenuItem{Header="删除",InputGestureText="Delete"};remove.Click+=(s,e)=>DeleteSelected();menu.Items.Add(remove);
+            list.PreviewMouseLeftButtonDown+=(s,e)=>
+            {
+                dragStart=e.GetPosition(list);
+                var cell=ItemsControl.ContainerFromElement(list,e.OriginalSource as DependencyObject) as ListBoxItem;
+                dragEntry=cell==null?null:cell.Tag as Shortcut;
+            };
+            list.PreviewMouseMove+=(s,e)=>
+            {
+                if(dragEntry==null||e.LeftButton!=MouseButtonState.Pressed)return;
+                var now=e.GetPosition(list);
+                if(Math.Abs(now.X-dragStart.X)<SystemParameters.MinimumHorizontalDragDistance&&
+                   Math.Abs(now.Y-dragStart.Y)<SystemParameters.MinimumVerticalDragDistance)return;
+                var selected=list.SelectedItems.Cast<ListBoxItem>().Select(cell=>cell.Tag as Shortcut).Where(item=>item!=null).ToArray();
+                if(!selected.Contains(dragEntry))selected=new[]{dragEntry};
+                dragEntry=null;
+                try
+                {
+                    var paths=selected.Select(item=>manager.Files.EntryPath(Capsule,item)).ToArray();
+                    if(paths.Any(path=>!File.Exists(path)&&!Directory.Exists(path)))throw new IOException(Lang.Text("有条目的文件已不存在，请先恢复原文件。","An item's file is missing. Restore it before dragging out.","項目のファイルが見つかりません。復元してからドラッグしてください。"));
+                    var data=new DataObject();data.SetData(DataFormats.FileDrop,paths);data.SetData("M-Capsule.InternalDrag",Capsule.Id);
+                    var allowed=selected.Any(item=>item.IsReference)?DragDropEffects.Copy:DragDropEffects.Copy|DragDropEffects.Move;
+                    var result=DragDrop.DoDragDrop(list,data,allowed);
+                    if(result==DragDropEffects.Copy||result==DragDropEffects.Move)manager.MoveEntriesOut(Capsule,selected);
+                }
+                catch(Exception ex){manager.Error(new IOException(Lang.Text("无法从胶囊拖出：","Could not drag out of capsule: ","カプセルからドラッグできません：")+ex.Message,ex));}
+                e.Handled=true;
+            };
+            var menu=new ContextMenu();var open=new MenuItem{Header=Lang.Text("打开","Open","開く")};open.Click+=(s,e)=>LaunchSelected();menu.Items.Add(open);
+            var remove=new MenuItem{Header=Lang.Text("删除","Remove","削除"),InputGestureText="Delete"};remove.Click+=(s,e)=>DeleteSelected();menu.Items.Add(remove);
             menu.Opened+=(s,e)=>{MenuOpen=true;open.IsEnabled=remove.IsEnabled=list.SelectedItems.Count>0;};
             menu.Closed+=(s,e)=>{MenuOpen=false;Dispatcher.BeginInvoke(new Action(()=>{if(IsVisible&&!IsActive&&manager.Dialogs==0&&manager.Popup==this)manager.ClosePopup();}),DispatcherPriority.Background);};list.ContextMenu=menu;
             PreviewKeyDown+=(s,e)=>
@@ -208,7 +248,8 @@ namespace PocketGrid
                     if(Clipboard.ContainsFileDropList())manager.Add(Capsule,Clipboard.GetFileDropList().Cast<string>());e.Handled=true;
                 }
             };
-            DragOver+=CapsuleWindow.OnDragOver;Drop+=(s,e)=>{if(e.Data.GetDataPresent(DataFormats.FileDrop)){manager.Add(Capsule,(string[])e.Data.GetData(DataFormats.FileDrop));AcceptDrop();e.Effects=DragDropEffects.Copy;e.Handled=true;}};
+            DragOver+=(s,e)=>{CapsuleWindow.OnDragOver(s,e);if(String.Equals(e.Data.GetData("M-Capsule.InternalDrag") as string,Capsule.Id,StringComparison.OrdinalIgnoreCase))e.Effects=DragDropEffects.None;};
+            Drop+=(s,e)=>{if(e.Data.GetDataPresent(DataFormats.FileDrop)&&!String.Equals(e.Data.GetData("M-Capsule.InternalDrag") as string,Capsule.Id,StringComparison.OrdinalIgnoreCase)){bool accepted=manager.Add(Capsule,(string[])e.Data.GetData(DataFormats.FileDrop));AcceptDrop();e.Effects=accepted?DragDropEffects.Copy:DragDropEffects.None;e.Handled=true;}};
             SourceInitialized+=(s,e)=>
             {
                 Handle=new WindowInteropHelper(this).Handle;var source=HwndSource.FromHwnd(Handle);source.CompositionTarget.BackgroundColor=Colors.Transparent;
@@ -304,7 +345,10 @@ namespace PocketGrid
             }
             empty.Visibility=Capsule.Items.Count==0?Visibility.Visible:Visibility.Collapsed;
             list.Visibility=Capsule.Items.Count==0?Visibility.Collapsed:Visibility.Visible;
-            count.Text=Capsule.Items.Count==0?"小文件复制进胶囊 · 大文件和文件夹保存引用":pageCount>1?"第 "+(pageIndex+1)+"/"+pageCount+" 页 · 共 "+Capsule.Items.Count+" 个":"双击打开 · Ctrl/Shift 复选 · Delete 删除";
+            count.Text=Capsule.Items.Count==0?
+                Lang.Text("拖入文件保存副本 · 文件夹保存引用","Files are copied · Folders are linked","ファイルはコピー · フォルダーは参照"):
+                pageCount>1?Lang.Text("第 ","Page ","ページ ")+(pageIndex+1)+"/"+pageCount+Lang.Text(" 页 · 共 "," · "," · 全 ")+Capsule.Items.Count+Lang.Text(" 个"," items"," 件"):
+                Lang.Text("双击打开 · 拖出移走 · Delete 删除","Double-click to open · Drag out to remove","ダブルクリックで開く · ドラッグで移出");
             previousPage.Visibility=nextPage.Visibility=pageCount>1?Visibility.Visible:Visibility.Collapsed;
             previousPage.IsEnabled=pageIndex>0;nextPage.IsEnabled=pageIndex<pageCount-1;
         }

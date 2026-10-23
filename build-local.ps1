@@ -47,8 +47,8 @@ $fx=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
 $refs=@('mscorlib.dll','System.dll','System.Core.dll','System.Xml.dll','System.Drawing.dll','System.Windows.Forms.dll','System.Xaml.dll','WPF\WindowsBase.dll','WPF\PresentationCore.dll','WPF\PresentationFramework.dll') | ForEach-Object { Join-Path $fx $_ }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $src=@(Get-ChildItem (Join-Path $PSScriptRoot 'src') -Filter '*.cs' | ForEach-Object FullName)
-[OfflineBuild]::Build($src,$refs,(Join-Path $OutputDirectory 'MSBeatutyCapsule.exe'),'PocketGrid.Program',(Join-Path $PSScriptRoot 'src\app.manifest'),(Join-Path $PSScriptRoot 'src\app.ico'))
-Copy-Item (Join-Path $PSScriptRoot 'src\app.config') (Join-Path $OutputDirectory 'MSBeatutyCapsule.exe.config')
+[OfflineBuild]::Build($src,$refs,(Join-Path $OutputDirectory 'M-Capsule.exe'),'PocketGrid.Program',(Join-Path $PSScriptRoot 'src\app.manifest'),(Join-Path $PSScriptRoot 'src\app.ico'))
+Copy-Item (Join-Path $PSScriptRoot 'src\app.config') (Join-Path $OutputDirectory 'M-Capsule.exe.config')
 foreach($test in @('CoreTests','PortableTests','HeadlessPortableTests','GridSnapTests','StartupTests','GlassBackdropTests','ReferenceTests','CustomIconTests','UltimateOrganizerTests')) {
     $file=Join-Path $PSScriptRoot "tests\$test.cs"
     if(Test-Path $file) {

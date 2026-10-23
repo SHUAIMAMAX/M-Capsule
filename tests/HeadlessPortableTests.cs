@@ -58,7 +58,7 @@ public static class HeadlessPortableTests
             File.Delete(Settings.Snapshot+".pending");
 
             var memory=new MemoryStartup();
-            string quoted=Path.Combine(Settings.InstallDirectory,"中文 & spaces","MSBeatutyCapsule.exe");
+            string quoted=Path.Combine(Settings.InstallDirectory,"中文 & spaces","M-Capsule.exe");
             var startup=new StartupRegistration(memory,quoted);
             Check(!startup.Enabled,"new registration has no Run value before first app launch");
             startup.Set(true);

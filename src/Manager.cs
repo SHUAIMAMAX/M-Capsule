@@ -45,6 +45,7 @@ namespace PocketGrid
         public Manager()
         {
             Preferences=Settings.Load();
+            Lang.Current=Preferences.Language;
             freshPlacementPending=Settings.FreshStart&&Preferences.Capsules.Count>0;
             foreach(var c in Preferences.Capsules)foreach(var entry in c.Items.Where(x=>x.IsReference))pendingCopies.Enqueue(Tuple.Create(c,entry));
             Icons=new IconCache(Application.Current.Dispatcher);
@@ -112,9 +113,10 @@ namespace PocketGrid
             }),DispatcherPriority.ContextIdle);
             if(Settings.LoadNotice!=null)Application.Current.Dispatcher.BeginInvoke(new Action(()=>MessageBox.Show(Settings.LoadNotice,Ui.Product,MessageBoxButton.OK,MessageBoxImage.Information)));
         }
-        void CreateWindow(Capsule c)
+        void CreateWindow(Capsule c,bool delayReveal=false)
         {
             var w=new CapsuleWindow(this,c);
+            if(delayReveal)w.Opacity=0;
             if(Windows.Count==0)w.ContentRendered+=(s,e)=>{Program.LogFirstFrame();if(freshPlacementPending)PlaceByDesktopIcons(c,false);RefreshDesktopGrid();if(pendingCopies.Count>0)copyMigration.Start();};
             Windows[c.Id]=w;w.Show();w.UpdateIconOcclusion();
         }
@@ -131,42 +133,58 @@ namespace PocketGrid
         Forms.ContextMenuStrip BuildTray()
         {
             var m=new Forms.ContextMenuStrip();
-            m.Items.Add("在桌面新建胶囊…",null,(s,e)=>NewCapsule());
-            var startup=new Forms.ToolStripMenuItem("开机自动启动") { Checked=Preferences.StartWithWindows };
+            m.Items.Add(Lang.Text("◆ 胶囊管理 · Capsule Manager","◆ Capsule Manager","◆ カプセル管理"),null,(s,e)=>ShowCapsuleList());
+            m.Items.Add(Lang.Text("在桌面新建胶囊…","New desktop capsule…","デスクトップにカプセルを作成…"),null,(s,e)=>NewCapsule());
+            var startup=new Forms.ToolStripMenuItem(Lang.Text("开机自动启动","Start with Windows","Windows と同時に起動")) { Checked=Preferences.StartWithWindows };
             startup.Click+=(s,e)=>{try{bool enabled=!Preferences.StartWithWindows;Settings.SetStartup(enabled);Preferences.StartWithWindows=enabled;Save();startup.Checked=enabled;}catch(Exception ex){Error(ex);}};
             m.Items.Add(startup);
-            m.Items.Add("检查/修复开机自启…",null,(s,e)=>
+            m.Items.Add(Lang.Text("检查/修复开机自启…","Check/repair startup…","自動起動を確認・修復…"),null,(s,e)=>
             {
                 try
                 {
                     Settings.SetStartup(true);Preferences.StartWithWindows=true;Save();RefreshTray();
-                    MessageBox.Show("已创建并读回核验登录自启快捷方式：\n"+Settings.StartupLink+"\n\n目标："+Settings.Executable+"\n配置："+Settings.DataDirectory+"\n\n如果 Windows 设置中禁用了此启动项，请在‘应用 → 启动’中启用。启动过程记录在 Data\\Logs\\startup.log。",Ui.Product);
+                    MessageBox.Show(Lang.Text("已创建并读回核验登录自启快捷方式：\n","Sign-in startup shortcut created and verified:\n","サインイン時の起動ショートカットを作成・確認しました：\n")+Settings.StartupLink+
+                        Lang.Text("\n\n目标：","\n\nTarget: ","\n\n対象：")+Settings.Executable+
+                        Lang.Text("\n配置：","\nConfiguration: ","\n設定：")+Settings.DataDirectory+
+                        Lang.Text("\n\n如果 Windows 设置中禁用了此启动项，请在‘应用 → 启动’中启用。启动过程记录在 Data\\Logs\\startup.log。",
+                        "\n\nIf Windows disabled this startup item, enable it in Settings → Apps → Startup. See Data\\Logs\\startup.log.",
+                        "\n\nWindows で無効になっている場合は、設定 → アプリ → スタートアップで有効にしてください。記録：Data\\Logs\\startup.log。"),Ui.Product);
                 }
                 catch(Exception ex){Error(ex);}
             });
-            var appearance=new Forms.ToolStripMenuItem("任务栏外观");
-            foreach(var pair in new[]{new[]{"normal","正常"},new[]{"acrylic","毛玻璃"},new[]{"clear","全透明"}})
+            var appearance=new Forms.ToolStripMenuItem(Lang.Text("任务栏外观","Taskbar appearance","タスクバーの外観"));
+            foreach(var pair in new[]{new[]{"normal",Lang.Text("正常","Normal","標準")},new[]{"acrylic",Lang.Text("毛玻璃","Blur","ぼかし")},new[]{"clear",Lang.Text("全透明","Transparent","透明")}})
             {
                 string mode=pair[0];var item=new Forms.ToolStripMenuItem(pair[1]){Checked=Preferences.TaskbarMode==mode};
                 item.Click+=(s,e)=>{SetTaskbarMode(mode);};appearance.DropDownItems.Add(item);
             }
             m.Items.Add(appearance);
-            m.Items.Add("更名或删除胶囊…",null,(s,e)=>ShowCapsuleList());
-            m.Items.Add("终极整理模式…",null,async (s,e)=>await RunUltimateOrganizer());
+            m.Items.Add(Lang.Text("终极整理模式…","Ultimate organizing mode…","究極整理モード…"),null,async (s,e)=>await RunUltimateOrganizer());
             m.Items.Add(new Forms.ToolStripSeparator());
-            var open=new Forms.ToolStripMenuItem("打开胶囊");
+            var open=new Forms.ToolStripMenuItem(Lang.Text("打开胶囊","Open capsule","カプセルを開く"));
             foreach(var capsule in Preferences.Capsules){var c=capsule;open.DropDownItems.Add(c.Name,null,(s,e)=>Open(c));}
             open.Enabled=Preferences.Capsules.Count>0;m.Items.Add(open);
-            m.Items.Add("使用说明",null,(s,e)=>{try{Process.Start(new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"使用说明.txt")){UseShellExecute=true});}catch(Exception ex){Error(ex);}});
+            m.Items.Add(Lang.Text("使用说明","User guide","使い方"),null,(s,e)=>{try{Process.Start(new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"使用说明.txt")){UseShellExecute=true});}catch(Exception ex){Error(ex);}});
             m.Items.Add(new Forms.ToolStripSeparator());
-            m.Items.Add("清理自启并退出",null,(s,e)=>DisableStartupAndExit());
-            m.Items.Add("退出",null,(s,e)=>Exit());
+            m.Items.Add(Lang.Text("清理自启并退出","Remove startup and exit","自動起動を解除して終了"),null,(s,e)=>DisableStartupAndExit());
+            m.Items.Add(Lang.Text("退出","Exit","終了"),null,(s,e)=>Exit());
             return m;
         }
         public void RefreshTray()
         {
             var old=tray.ContextMenuStrip;tray.ContextMenuStrip=BuildTray();
             if(old!=null)Application.Current.Dispatcher.BeginInvoke(new Action(()=>old.Dispose()),DispatcherPriority.Background);
+        }
+        public void SetLanguage(string value)
+        {
+            string previous=Preferences.Language;
+            Preferences.Language=Lang.Normalize(value);
+            try{Settings.Save(Preferences);}
+            catch(Exception ex){Preferences.Language=previous;Error(new IOException("语言设置未能保存："+ex.Message,ex));return;}
+            Lang.Current=Preferences.Language;
+            ClosePopup();
+            foreach(var window in Windows.Values)window.UpdateLanguage();
+            RefreshTray();
         }
         void ReportTaskbarError(string message)
         {
@@ -287,9 +305,9 @@ namespace PocketGrid
         }
         public void NewCapsule()
         {
-            if(Preferences.Capsules.Count>=Logic.MaxCapsules){Notify("最多创建 32 个胶囊。");return;}
+            if(Preferences.Capsules.Count>=Logic.MaxCapsules){Notify(Lang.Text("最多创建 32 个胶囊。","Up to 32 capsules are supported.","カプセルは最大 32 個です。"));return;}
             ClosePopup();Dialogs++;
-            string name;try{name=Ui.AskName("新建胶囊","小工具");}finally{Dialogs--;}
+            string name;try{name=Ui.AskName(Lang.Text("新建胶囊","New capsule","新しいカプセル"),Lang.Text("小工具","Tools","ツール"));}finally{Dialogs--;}
             if(name==null)return;
             CreateCapsule(name);
         }
@@ -305,10 +323,15 @@ namespace PocketGrid
             string folder=null;
             try
             {
-                if(Preferences.Capsules.Count>Logic.MaxCapsules-5)throw new IOException("需要预留 5 个胶囊位置，请先删减胶囊后再整理。");
+                if(Preferences.Capsules.Count>Logic.MaxCapsules-5)throw new IOException(Lang.Text("需要预留 5 个胶囊位置，请先删减胶囊后再整理。","Free five capsule slots before organizing.","整理の前にカプセルを 5 個分空けてください。"));
                 var plan=UltimateOrganizer.Prepare(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
-                string prompt="为了极致整理桌面，现在会把您桌面上所有文件和快捷方式先收纳到一个桌面的文件夹里，可以吗？\n\n"+
-                    "将移动当前用户桌面的 "+plan.Files.Length+" 个普通文件到“胶囊整理”，不移动已有文件夹、隐藏或系统文件，也不移动公共桌面项目。然后打开该文件夹并排列在屏幕左半边，在右半边生成 5 个胶囊。\n\n此操作不会在开机时自动运行。";
+                string prompt=Lang.Text(
+                    "为了极致整理桌面，现在会把您桌面上所有文件和快捷方式先收纳到一个桌面的文件夹里，可以吗？\n\n"+
+                    "将移动当前用户桌面的 "+plan.Files.Length+" 个普通文件到"+(plan.DestinationExists?"已有的":"新建的")+"“胶囊整理”，不移动已有文件夹、隐藏或系统文件，也不移动公共桌面项目。"+
+                    (plan.DestinationExists?"如遇同名文件，会自动添加序号，不覆盖旧文件。":"")+
+                    "然后打开该文件夹并排列在屏幕左半边，在右半边新增 5 个胶囊。\n\n此操作不会在开机时自动运行。",
+                    "Organize your desktop now?\n\nMove "+plan.Files.Length+" visible files and shortcuts from your personal Desktop into "+(plan.DestinationExists?"the existing":"a new")+" '胶囊整理' folder. Existing folders, hidden/system files and Public Desktop items stay where they are. Names that already exist get a number; nothing is overwritten. The folder will open on the left and five new capsules will appear on the right.\n\nThis never runs automatically at startup.",
+                    "デスクトップを整理しますか？\n\n個人用デスクトップの表示中のファイルとショートカット "+plan.Files.Length+" 件を「胶囊整理」フォルダーへ移動します。既存フォルダー、非表示・システム項目、共有デスクトップは対象外です。同名ファイルは番号を付け、上書きしません。フォルダーを左側に開き、右側に新しいカプセルを 5 個作成します。\n\n起動時に自動実行されません。");
                 if(MessageBox.Show(prompt,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)!=MessageBoxResult.Yes)return;
                 organizing=true;
                 folder=await Task.Run(()=>UltimateOrganizer.Execute(plan,true));
@@ -317,15 +340,15 @@ namespace PocketGrid
                 try{arranged=await ExplorerLayout.OpenOnLeft(folder,screen);}
                 catch(Exception ex){StartupLog.Write("Explorer half-screen layout failed: "+ex.Message);}
                 CreateFiveOrganizingCapsules(screen);
-                if(!arranged)MessageBox.Show("文件已安全收纳在“胶囊整理”，5 个胶囊也已生成。文件夹窗口未能自动排列到左半屏，请手动打开或调整窗口。",Ui.Product);
+                if(!arranged)MessageBox.Show(Lang.Text("文件已安全收纳在“胶囊整理”，5 个胶囊也已生成。文件夹窗口未能自动排列到左半屏，请手动打开或调整窗口。",
+                    "Files are in '胶囊整理' and five capsules were created. Explorer could not be placed on the left; please arrange it manually.",
+                    "ファイルを「胶囊整理」に収め、カプセルを 5 個作成しました。Explorer を左側に配置できませんでした。手動で調整してください。"),Ui.Product);
             }
             catch(Exception ex){Error(folder==null?ex:new IOException("文件已移动到：\n"+folder+"\n\n后续步骤未完成："+ex.Message,ex));}
             finally{organizing=false;}
         }
         void CreateFiveOrganizingCapsules(System.Drawing.Rectangle screen)
         {
-            var anchor=Windows.Values.FirstOrDefault();
-            if(anchor==null)throw new IOException("没有可用的胶囊窗口。");
             var created=new List<Capsule>();
             var colors=new HashSet<int>();
             var random=new Random(Guid.NewGuid().GetHashCode());
@@ -336,10 +359,11 @@ namespace PocketGrid
                 for(int i=0;i<5;i++)
                 {
                     int color;do{color=random.Next(130);}while(!colors.Add(color));
-                    var position=anchor.FromPixels(new System.Windows.Point(positions[i].X,positions[i].Y));
-                    var c=new Capsule{Name="整理胶囊 "+(i+1),ColorIndex=color,X=position.X,Y=position.Y};
-                    Preferences.Capsules.Add(c);created.Add(c);CreateWindow(c);
+                    var c=new Capsule{Name=Lang.Text("整理胶囊 ","Organize ","整理カプセル ")+(i+1),ColorIndex=color};
+                    Preferences.Capsules.Add(c);created.Add(c);CreateWindow(c,true);
+                    var position=Windows[c.Id].FromPixels(new System.Windows.Point(positions[i].X,positions[i].Y));
                     var w=Windows[c.Id];w.Left=position.X;w.Top=position.Y;w.ClampPosition();w.Remember();
+                    w.Opacity=1;
                 }
                 Preferences.NextColor=nextColor+5;
                 Settings.Save(Preferences);RefreshTray();
@@ -371,7 +395,7 @@ namespace PocketGrid
         public void Rename(Capsule c)
         {
             ClosePopup();Dialogs++;string name;
-            try{name=Ui.AskName("胶囊更名",c.Name,()=>ChangeIcon(c),()=>RestoreIcon(c),()=>CustomIcons.Source(Settings.DataDirectory,c),
+            try{name=Ui.AskName(Lang.Text("胶囊更名","Rename capsule","カプセル名の変更"),c.Name,()=>ChangeIcon(c),()=>RestoreIcon(c),()=>CustomIcons.Source(Settings.DataDirectory,c),
                 ()=>ChangeAppearance(c),()=>c.HasCustomIcon,()=>c.IconOpacityPercent);}finally{Dialogs--;}
             if(name==null)return;RenameCapsule(c,name);
         }
@@ -381,18 +405,47 @@ namespace PocketGrid
         }
         public void ChangeIcon(Capsule c)
         {
-            var dialog=new Microsoft.Win32.OpenFileDialog{Title="为“"+c.Name+"”选择图标图片",Filter="图标图片|*.png;*.jpg;*.jpeg;*.bmp;*.ico",Multiselect=false,CheckFileExists=true};
+            var dialog=new Microsoft.Win32.OpenFileDialog{Title=Lang.Text("为“","Choose an image for ","画像を選択：")+c.Name,Filter=Lang.Text("图标图片","Images","画像")+"|*.png;*.jpg;*.jpeg;*.bmp;*.ico",Multiselect=false,CheckFileExists=true};
             var owner=Application.Current.Windows.OfType<Window>().FirstOrDefault(w=>w.IsActive);
             if(dialog.ShowDialog(owner)!=true)return;
             try
             {
                 var image=CustomIcons.Decode(dialog.FileName);
-                string detail=Path.GetFileName(dialog.FileName)+"\n"+image.PixelWidth+" × "+image.PixelHeight+" 像素\n\n确认替换“"+c.Name+"”的桌面图标？\n图片会缩小保存到便携版 Data/Icons。";
+                string detail=Path.GetFileName(dialog.FileName)+"\n"+image.PixelWidth+" × "+image.PixelHeight+Lang.Text(" 像素\n\n确认替换“"," pixels\n\nReplace the image of "," px\n\n画像を変更：")+c.Name+Lang.Text("”的桌面图标？\n图片会缩小保存到便携版 Data/Icons。","?\nA resized copy is saved in Data/Icons.","？\n縮小したコピーを Data/Icons に保存します。");
                 if(owner==null?MessageBox.Show(detail,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes:MessageBox.Show(owner,detail,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
                 CustomIcons.Save(Settings.DataDirectory,c,dialog.FileName);
                 c.HasCustomIcon=true;Save();Windows[c.Id].UpdateIcon();
             }
             catch(Exception ex){Error(new IOException("图标替换失败："+ex.Message,ex));}
+        }
+        Capsule[] ActiveSelection(IEnumerable<Capsule> selected)
+        {
+            return (selected??Enumerable.Empty<Capsule>()).Where(c=>c!=null&&Preferences.Capsules.Contains(c)).Distinct().ToArray();
+        }
+        public void ChangeIcons(IEnumerable<Capsule> selected)
+        {
+            var capsules=ActiveSelection(selected);
+            if(capsules.Length==0)return;
+            var dialog=new Microsoft.Win32.OpenFileDialog{Title=Lang.Text("为选中的胶囊选择统一图标","Choose one image for selected capsules","選択したカプセルの共通画像を選択"),Filter=Lang.Text("图标图片","Images","画像")+"|*.png;*.jpg;*.jpeg;*.bmp;*.ico",Multiselect=false,CheckFileExists=true};
+            var owner=Application.Current.Windows.OfType<Window>().FirstOrDefault(w=>w.IsActive);
+            if(dialog.ShowDialog(owner)!=true)return;
+            try
+            {
+                var image=CustomIcons.Decode(dialog.FileName);
+                string detail=Path.GetFileName(dialog.FileName)+"\n"+image.PixelWidth+" × "+image.PixelHeight+Lang.Text(" 像素\n\n确认给选中的 "," pixels\n\nUse this image for "," px\n\nこの画像を ")+capsules.Length+Lang.Text(" 个胶囊统一使用这张图片？\n每个胶囊会在 Data/Icons 中保存自己的副本。"," selected capsules?\nEach gets its own copy in Data/Icons."," 個のカプセルに適用しますか？\n各カプセルに Data/Icons 内のコピーを保存します。");
+                var choice=owner==null?MessageBox.Show(detail,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question):
+                    MessageBox.Show(owner,detail,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question);
+                if(choice!=MessageBoxResult.Yes)return;
+                int changed=0;var failed=new List<string>();
+                foreach(var c in capsules)
+                {
+                    try{CustomIcons.SaveImage(Settings.DataDirectory,c,image);c.HasCustomIcon=true;Windows[c.Id].UpdateIcon();changed++;}
+                    catch(Exception ex){failed.Add(c.Name+"："+ex.Message);}
+                }
+                if(changed>0){ClosePopup();Settings.Save(Preferences);}
+                if(failed.Count>0)Error(new IOException(Lang.Text("已更新 ","Updated ","更新済み ")+changed+Lang.Text(" 个胶囊；以下胶囊未完成：\n"," capsules; these failed:\n"," 個。以下は失敗：\n")+String.Join("\n",failed.Take(8))));
+            }
+            catch(Exception ex){Error(new IOException("批量替换图标失败："+ex.Message,ex));}
         }
         public void RestoreIcon(Capsule c)
         {
@@ -401,7 +454,7 @@ namespace PocketGrid
         }
         public void ChangeAppearance(Capsule c)
         {
-            if(c.HasCustomIcon){MessageBox.Show("请先还原默认胶囊图，再更换颜色和透明度。",Ui.Product);return;}
+            if(c.HasCustomIcon){MessageBox.Show(Lang.Text("请先还原默认胶囊图，再更换颜色和透明度。","Restore the default image before changing color or opacity.","色や透明度を変更する前に既定の画像へ戻してください。"),Ui.Product);return;}
             Dialogs++;
             try
             {
@@ -417,10 +470,51 @@ namespace PocketGrid
             }
             finally{Dialogs--;}
         }
+        public void ChangeAppearances(IEnumerable<Capsule> selected)
+        {
+            var capsules=ActiveSelection(selected);
+            var eligible=capsules.Where(c=>!c.HasCustomIcon).ToArray();
+            if(eligible.Length==0){MessageBox.Show(Lang.Text("所选胶囊均使用自定义图片。请先还原默认胶囊图，再统一换色。","All selected capsules use custom images. Restore their default images before changing colors.","選択したカプセルはすべてカスタム画像です。色を変える前に既定画像へ戻してください。"),Ui.Product);return;}
+            var dialog=new CapsuleAppearanceDialog(eligible[0]);
+            if(dialog.ShowDialog()!=true)return;
+            var old=eligible.Select(c=>Tuple.Create(c,c.ColorIndex,c.IconOpacityPercent)).ToArray();
+            foreach(var c in eligible){c.ColorIndex=dialog.SelectedColor;c.IconOpacityPercent=dialog.SelectedOpacity;}
+            try{Settings.Save(Preferences);}
+            catch(Exception ex)
+            {
+                foreach(var item in old){item.Item1.ColorIndex=item.Item2;item.Item1.IconOpacityPercent=item.Item3;}
+                Error(new IOException("批量外观未能保存："+ex.Message,ex));return;
+            }
+            foreach(var c in eligible)Windows[c.Id].UpdateIcon();
+            ClosePopup();
+            int skipped=capsules.Length-eligible.Length;
+            if(skipped>0)MessageBox.Show(Lang.Text("已统一调整 ","Updated ","変更済み ")+eligible.Length+Lang.Text(" 个胶囊；另有 "," capsules; "," 個。")+skipped+Lang.Text(" 个使用自定义图片，未换色。"," with custom images were skipped."," 個はカスタム画像のため対象外です。"),Ui.Product);
+        }
+        public void DeleteCapsules(IEnumerable<Capsule> selected)
+        {
+            var capsules=ActiveSelection(selected);
+            if(capsules.Length==0)return;
+            string detail=Lang.Text("确定删除选中的 ","Delete ","選択した ")+capsules.Length+Lang.Text(" 个胶囊？\n\n胶囊内的文件副本会移入回收站；旧版路径引用只从胶囊移除，原文件不受影响。",
+                " selected capsules?\n\nStored copies go to the Recycle Bin. Legacy path links are removed from the capsule only; original files stay untouched.",
+                " 個のカプセルを削除しますか？\n\n保存済みコピーはごみ箱へ移動します。旧版の参照はカプセルからのみ削除され、元ファイルは残ります。");
+            var owner=Application.Current.Windows.OfType<Window>().FirstOrDefault(w=>w.IsActive);
+            var choice=owner==null?MessageBox.Show(detail,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question):
+                MessageBox.Show(owner,detail,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question);
+            if(choice!=MessageBoxResult.Yes)return;
+            int deleted=0;var failed=new List<string>();
+            foreach(var c in capsules)
+            {
+                try{RemoveCapsule(c);deleted++;}
+                catch(Exception ex){failed.Add(c.Name+"："+ex.Message);}
+            }
+            if(failed.Count>0)Error(new IOException("已删除 "+deleted+" 个胶囊；以下胶囊未完成：\n"+String.Join("\n",failed.Take(8))));
+        }
         public void DeleteCapsule(Capsule c)
         {
             ClosePopup();
-            if(MessageBox.Show("删除胶囊“"+c.Name+"”？\n胶囊内的小文件副本会移入回收站；大文件和文件夹的原路径引用只从胶囊移除。原文件不受影响。",Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
+            if(MessageBox.Show(Lang.Text("删除胶囊“","Delete capsule ","カプセルを削除：")+c.Name+Lang.Text("”？\n胶囊内的文件副本会移入回收站；旧版路径引用只从胶囊移除，原文件不受影响。",
+                "?\nStored copies go to the Recycle Bin. Legacy links are removed from the capsule only; original files remain.",
+                "？\n保存済みコピーはごみ箱へ移動します。旧版の参照はカプセルからのみ削除され、元ファイルは残ります。"),Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
             try
             {
                 RemoveCapsule(c);
@@ -437,7 +531,7 @@ namespace PocketGrid
             if(!new[]{"normal","clear","acrylic"}.Contains(mode))throw new ArgumentException("mode");
             Preferences.TaskbarMode=mode;Save();ApplyTaskbar(false);RefreshTray();
         }
-        public void Add(Capsule c,IEnumerable<string> paths)
+        public bool Add(Capsule c,IEnumerable<string> paths)
         {
             int previousCount=c.Items.Count;
             var failures=new List<string>();var seen=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -446,15 +540,18 @@ namespace PocketGrid
                 if(!seen.Add(path))continue;
                 try{Files.Add(c,path);}catch(Exception ex){failures.Add(Path.GetFileName(path)+"："+ex.Message);}
             }
-            Save();if(Popup!=null&&Popup.Capsule.Id==c.Id)Popup.Refresh(c.Items.Count>previousCount);
+            bool saved=true;
+            try{Settings.Save(Preferences);}catch(Exception ex){saved=false;failures.Add(Lang.Text("配置保存失败：","Could not save configuration: ","設定の保存に失敗：")+ex.Message);}
+            if(Popup!=null&&Popup.Capsule.Id==c.Id)Popup.Refresh(c.Items.Count>previousCount);
             if(failures.Count>0)Error(new IOException(String.Join("\n",failures.Take(8))));
+            return saved&&failures.Count==0&&seen.Count>0;
         }
         public void ChooseFiles(Capsule c)
         {
             Dialogs++;
             try
             {
-                var dialog=new Microsoft.Win32.OpenFileDialog{Title="添加文件到“"+c.Name+"”",Multiselect=true,DereferenceLinks=false,CheckFileExists=true,Filter="所有文件|*.*"};
+                var dialog=new Microsoft.Win32.OpenFileDialog{Title=Lang.Text("添加文件到“","Add files to ","ファイルを追加：")+c.Name+Lang.Text("”","",""),Multiselect=true,DereferenceLinks=false,CheckFileExists=true,Filter=Lang.Text("所有文件","All files","すべてのファイル")+"|*.*"};
                 if(dialog.ShowDialog()==true)Add(c,dialog.FileNames);
             }
             finally{Dialogs--;if(Popup!=null){Popup.Activate();Popup.Focus();}}
@@ -462,6 +559,12 @@ namespace PocketGrid
         public void DeleteEntries(Capsule c,IEnumerable<Shortcut> entries)
         {
             try{Files.Remove(c,entries,RuntimeMode.Recycle);}catch(Exception ex){Error(ex);}
+            finally{Save();if(Popup!=null&&Popup.Capsule.Id==c.Id)Popup.Refresh();}
+        }
+        public void MoveEntriesOut(Capsule c,IEnumerable<Shortcut> entries)
+        {
+            try{Files.RemoveTransferred(c,entries,RuntimeMode.Recycle);}
+            catch(Exception ex){Error(new IOException("拖出后未能清理胶囊条目，请检查目标文件和胶囊内容："+ex.Message,ex));}
             finally{Save();if(Popup!=null&&Popup.Capsule.Id==c.Id)Popup.Refresh();}
         }
         public void Launch(Capsule c,Shortcut entry)
