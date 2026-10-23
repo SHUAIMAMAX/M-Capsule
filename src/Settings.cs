@@ -9,6 +9,7 @@ namespace PocketGrid
         public static string DataDirectory { get { return Path.Combine(InstallDirectory,RuntimeMode.Sandbox?"SandboxData":"Data"); } }
         public static string Executable { get { return Path.Combine(InstallDirectory,"MSBeatutyCapsule.exe"); } }
         public static string LoadNotice { get; private set; }
+        public static bool FreshStart { get; private set; }
         internal static string Snapshot { get { return Path.Combine(DataDirectory,"Config","configuration.xml"); } }
         public static Preferences Load()
         {
@@ -22,6 +23,7 @@ namespace PocketGrid
                 if(File.Exists(file)) candidates.Add(new ConfigCandidate("disk"+suffix,File.ReadAllText(file)));
             }
             var result=Recovery.Select(candidates,Path.Combine(DataDirectory,"Capsules"));
+            FreshStart=result.Source=="new"&&!result.Recovered;
             if(result.Recovered)
                 LoadNotice=result.Source=="files"?"配置和备份不可用，已从快捷方式副本重建胶囊。部分名称使用临时名称。":result.Source=="new"?"配置及备份损坏，未找到可恢复的副本，已创建空胶囊。损坏文件将在保存时保留。":"已从本地备份恢复胶囊配置。";
             return result.Value;

@@ -1,4 +1,4 @@
-MS Beatuty Capsule Portable 1.0.2 — source/build notes
+MS Beatuty Capsule Portable 1.1.0 — source/build notes
 
 Original source: supplied MS-Beatuty-Capsule-Source.zip (0.3.0), preserved unchanged.
 Only the real portable app is packaged. No SandboxPreview executable is built.
@@ -17,6 +17,8 @@ checks pixels and wallpaper positioning, and exports synthetic PNG fixtures.
 It does not capture the desktop or open windows.
 ReferenceTests.exe checks bounded file copies, large-file/folder path mappings,
 legacy reference migration, and deletion protection.
+UltimateOrganizerTests.exe moves only temporary fixture files, verifies rollback,
+No branch, collision protection and half-screen geometry; it never touches the real desktop.
 CustomIconTests.exe checks image limits, portable icon copy, restore, and 130 colors.
 GridSnapTests.exe also checks synthetic Explorer icon cell occupancy.
 PortableTests.exe creates WPF windows; it was not run in this delivery.

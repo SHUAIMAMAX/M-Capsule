@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -37,11 +38,14 @@ namespace PocketGrid
         int recoveryTicks;
         TaskbarController taskbar;
         bool disposed;
+        bool freshPlacementPending;
+        bool organizing;
         int taskbarErrorPending;
         DateTime lastGridRefresh=DateTime.MinValue;
         public Manager()
         {
             Preferences=Settings.Load();
+            freshPlacementPending=Settings.FreshStart&&Preferences.Capsules.Count>0;
             foreach(var c in Preferences.Capsules)foreach(var entry in c.Items.Where(x=>x.IsReference))pendingCopies.Enqueue(Tuple.Create(c,entry));
             Icons=new IconCache(Application.Current.Dispatcher);
             Directory.CreateDirectory(Settings.DataDirectory);
@@ -111,7 +115,7 @@ namespace PocketGrid
         void CreateWindow(Capsule c)
         {
             var w=new CapsuleWindow(this,c);
-            if(Windows.Count==0)w.ContentRendered+=(s,e)=>{Program.LogFirstFrame();RefreshDesktopGrid();if(pendingCopies.Count>0)copyMigration.Start();};
+            if(Windows.Count==0)w.ContentRendered+=(s,e)=>{Program.LogFirstFrame();if(freshPlacementPending)PlaceByDesktopIcons(c,false);RefreshDesktopGrid();if(pendingCopies.Count>0)copyMigration.Start();};
             Windows[c.Id]=w;w.Show();w.UpdateIconOcclusion();
         }
         public void Error(Exception ex) { ClosePopup(); MessageBox.Show(ex.Message,Ui.Product,MessageBoxButton.OK,MessageBoxImage.Information); }
@@ -148,6 +152,7 @@ namespace PocketGrid
             }
             m.Items.Add(appearance);
             m.Items.Add("更名或删除胶囊…",null,(s,e)=>ShowCapsuleList());
+            m.Items.Add("终极整理模式…",null,async (s,e)=>await RunUltimateOrganizer());
             m.Items.Add(new Forms.ToolStripSeparator());
             var open=new Forms.ToolStripMenuItem("打开胶囊");
             foreach(var capsule in Preferences.Capsules){var c=capsule;open.DropDownItems.Add(c.Name,null,(s,e)=>Open(c));}
@@ -270,6 +275,7 @@ namespace PocketGrid
             DesktopIconGrid.Refresh((spacingChanged,iconsChanged)=>
             {
                 if(disposed)return;
+                if(freshPlacementPending){PlaceByDesktopIcons(Preferences.Capsules[0],false);freshPlacementPending=false;}
                 if(spacingChanged)Reposition();
                 else if(iconsChanged)foreach(var w in Windows.Values)w.UpdateIconOcclusion();
             });
@@ -291,7 +297,76 @@ namespace PocketGrid
         {
             if(Preferences.Capsules.Count>=Logic.MaxCapsules)throw new IOException("最多创建 32 个胶囊。");
             var c=new Capsule{Name=Logic.CleanName(name),ColorIndex=Preferences.NextColor++,X=32+Preferences.Capsules.Count%6*92,Y=140+Preferences.Capsules.Count/6*110};
-            Preferences.Capsules.Add(c);Save();CreateWindow(c);if(Windows[c.Id].IsVisible)Native.DesktopLayer(Windows[c.Id].Handle,true);RefreshTray();return c;
+            Preferences.Capsules.Add(c);CreateWindow(c);PlaceByDesktopIcons(c,true);Save();if(Windows[c.Id].IsVisible)Native.DesktopLayer(Windows[c.Id].Handle,true);RefreshTray();return c;
+        }
+        async Task RunUltimateOrganizer()
+        {
+            if(organizing)return;
+            string folder=null;
+            try
+            {
+                if(Preferences.Capsules.Count>Logic.MaxCapsules-5)throw new IOException("需要预留 5 个胶囊位置，请先删减胶囊后再整理。");
+                var plan=UltimateOrganizer.Prepare(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+                string prompt="为了极致整理桌面，现在会把您桌面上所有文件和快捷方式先收纳到一个桌面的文件夹里，可以吗？\n\n"+
+                    "将移动当前用户桌面的 "+plan.Files.Length+" 个普通文件到“胶囊整理”，不移动已有文件夹、隐藏或系统文件，也不移动公共桌面项目。然后打开该文件夹并排列在屏幕左半边，在右半边生成 5 个胶囊。\n\n此操作不会在开机时自动运行。";
+                if(MessageBox.Show(prompt,Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)!=MessageBoxResult.Yes)return;
+                organizing=true;
+                folder=await Task.Run(()=>UltimateOrganizer.Execute(plan,true));
+                var screen=Forms.Screen.FromPoint(Forms.Cursor.Position).WorkingArea;
+                bool arranged=false;
+                try{arranged=await ExplorerLayout.OpenOnLeft(folder,screen);}
+                catch(Exception ex){StartupLog.Write("Explorer half-screen layout failed: "+ex.Message);}
+                CreateFiveOrganizingCapsules(screen);
+                if(!arranged)MessageBox.Show("文件已安全收纳在“胶囊整理”，5 个胶囊也已生成。文件夹窗口未能自动排列到左半屏，请手动打开或调整窗口。",Ui.Product);
+            }
+            catch(Exception ex){Error(folder==null?ex:new IOException("文件已移动到：\n"+folder+"\n\n后续步骤未完成："+ex.Message,ex));}
+            finally{organizing=false;}
+        }
+        void CreateFiveOrganizingCapsules(System.Drawing.Rectangle screen)
+        {
+            var anchor=Windows.Values.FirstOrDefault();
+            if(anchor==null)throw new IOException("没有可用的胶囊窗口。");
+            var created=new List<Capsule>();
+            var colors=new HashSet<int>();
+            var random=new Random(Guid.NewGuid().GetHashCode());
+            int nextColor=Preferences.NextColor;
+            var positions=GridSnap.RightCluster(screen.Left,screen.Top,screen.Width,screen.Height,88,98);
+            try
+            {
+                for(int i=0;i<5;i++)
+                {
+                    int color;do{color=random.Next(130);}while(!colors.Add(color));
+                    var position=anchor.FromPixels(new System.Windows.Point(positions[i].X,positions[i].Y));
+                    var c=new Capsule{Name="整理胶囊 "+(i+1),ColorIndex=color,X=position.X,Y=position.Y};
+                    Preferences.Capsules.Add(c);created.Add(c);CreateWindow(c);
+                    var w=Windows[c.Id];w.Left=position.X;w.Top=position.Y;w.ClampPosition();w.Remember();
+                }
+                Preferences.NextColor=nextColor+5;
+                Settings.Save(Preferences);RefreshTray();
+                foreach(var c in created)Native.DesktopLayer(Windows[c.Id].Handle,true);
+            }
+            catch
+            {
+                foreach(var c in created)
+                {
+                    CapsuleWindow window;
+                    if(Windows.TryGetValue(c.Id,out window)){window.Close();Windows.Remove(c.Id);}
+                    Preferences.Capsules.Remove(c);
+                }
+                Preferences.NextColor=nextColor;
+                throw;
+            }
+        }
+        void PlaceByDesktopIcons(Capsule c,bool nearCursor)
+        {
+            var w=Windows[c.Id];var area=w.WorkArea(nearCursor);
+            var occupied=Windows.Values.Where(other=>other!=w).Select(other=>new GridPoint(other.Left,other.Top));
+            var point=GridSnap.SuggestSpawn(area.Left,area.Top,area.Right,area.Bottom,w.Width,w.Height,occupied,DesktopIconGrid.InWindowCoordinates(w));
+            w.Left=point.X;w.Top=point.Y;w.ClampPosition();w.Remember();
+        }
+        public void KeepManualPosition(Capsule c)
+        {
+            if(Preferences.Capsules.Count>0&&Preferences.Capsules[0]==c)freshPlacementPending=false;
         }
         public void Rename(Capsule c)
         {
@@ -403,6 +478,7 @@ namespace PocketGrid
         public void DisableStartupAndExit()
         {
             if(disposed)return;
+            if(organizing){Notify("桌面整理仍在进行，完成后再清理自启并退出。");return;}
             try
             {
                 Settings.SetStartup(false);
@@ -412,7 +488,7 @@ namespace PocketGrid
             }
             catch(Exception ex){Error(new IOException("未能完成自启清理或配置保存，程序仍在运行："+ex.Message,ex));}
         }
-        public void Exit(){if(disposed)return;ClosePopup();Save();Dispose();Application.Current.Shutdown();}
+        public void Exit(){if(disposed)return;if(organizing){Notify("桌面整理仍在进行，完成后再退出。");return;}ClosePopup();Save();Dispose();Application.Current.Shutdown();}
         public void Dispose()
         {
             if(disposed)return;disposed=true;

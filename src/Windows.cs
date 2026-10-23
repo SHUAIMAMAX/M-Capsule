@@ -59,7 +59,7 @@ namespace PocketGrid
             root.MouseLeave+=(s,e)=>{frame.Background=Brushes.Transparent;hoverTimer.Stop();};
             root.MouseLeftButtonDown+=(s,e)=>
             {
-                hoverTimer.Stop();pressed=true;moving=false;initialCursor=Forms.Cursor.Position;initialX=Left;initialY=Top;root.CaptureMouse();e.Handled=true;
+                hoverTimer.Stop();manager.KeepManualPosition(Capsule);pressed=true;moving=false;initialCursor=Forms.Cursor.Position;initialX=Left;initialY=Top;root.CaptureMouse();e.Handled=true;
             };
             root.MouseMove+=(s,e)=>
             {
@@ -123,15 +123,8 @@ namespace PocketGrid
         public void Remember(){Capsule.X=Left;Capsule.Y=Top;}
         public void UpdateIconOcclusion()
         {
-            var grid=DesktopIconGrid.InWindowCoordinates(this);
-            if(grid==null)return;
-            bool covered=GridSnap.CoversDesktopIcon(Left,Top,Width,Height,grid);
-            if(covered&&IsVisible)
-            {
-                if(manager.Popup!=null&&manager.Popup.Capsule.Id==Capsule.Id)manager.ClosePopup();
-                Hide();
-            }
-            else if(!covered&&!IsVisible)
+            // A dense desktop must never make a capsule disappear behind Explorer icons.
+            if(!IsVisible)
             {
                 Show();Native.DesktopLayer(Handle,true);
             }

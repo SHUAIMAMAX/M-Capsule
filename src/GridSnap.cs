@@ -68,6 +68,30 @@ namespace PocketGrid
             if(desktop==null||desktop.Icons==null)return false;
             return desktop.Icons.Any(p=>p!=null&&Overlaps(x,y,width,height,p.X,p.Y,desktop.StepX,desktop.StepY));
         }
+        public static GridPoint SuggestSpawn(double left,double top,double right,double bottom,double width,double height,
+            IEnumerable<GridPoint> capsules,DesktopGrid desktop)
+        {
+            double centerX=left+(right-left-width)/2,centerY=top+(bottom-top-height)/2;
+            if(desktop!=null&&desktop.Icons!=null&&desktop.StepX>=40&&desktop.StepY>=40)
+            {
+                var icons=desktop.Icons.Where(p=>p!=null&&p.X>=left&&p.X<right&&p.Y>=top&&p.Y<bottom).ToArray();
+                double capacity=Math.Max(1,Math.Ceiling((right-left)/desktop.StepX)*Math.Ceiling((bottom-top)/desktop.StepY));
+                if(icons.Length>capacity/3)
+                {
+                    int leftCount=icons.Count(p=>p.X<left+(right-left)/2);
+                    int topCount=icons.Count(p=>p.Y<top+(bottom-top)/2);
+                    if(leftCount>=Math.Ceiling(icons.Length*0.75))centerX=left+(right-left)*0.75-width/2;
+                    else if(topCount>=Math.Ceiling(icons.Length*0.9))centerY=top+(bottom-top)*0.75-height/2;
+                }
+            }
+            return PlaceOnDesktop(centerX,centerY,left,top,right,bottom,width,height,capsules,desktop);
+        }
+        public static GridPoint[] RightCluster(double left,double top,double width,double height,double capsuleWidth,double capsuleHeight)
+        {
+            return Enumerable.Range(0,5).Select(i=>new GridPoint(
+                left+width*(i%2==0?0.70:0.80)-capsuleWidth/2,
+                top+height*(0.35+0.15*(i/2))-capsuleHeight/2)).ToArray();
+        }
         static bool Overlaps(double ax,double ay,double aw,double ah,double bx,double by,double bw,double bh)
         {
             return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;

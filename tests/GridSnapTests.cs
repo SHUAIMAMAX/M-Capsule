@@ -37,7 +37,7 @@ public static class GridSnapTests
             Icons=new[]{new GridPoint(20,15),new GridPoint(140,15),new GridPoint(260,15)}};
         var aligned=GridSnap.PlaceOnDesktop(270,20,0,0,1920,1080,88,98,none,desktop);
         Check(aligned.X==260&&aligned.Y==15,"capsule may use the same first-row cell as a desktop icon");
-        Check(GridSnap.CoversDesktopIcon(aligned.X,aligned.Y,88,98,desktop),"overlapping Explorer icon takes visual and click priority");
+        Check(GridSnap.CoversDesktopIcon(aligned.X,aligned.Y,88,98,desktop),"overlap detection remains available without hiding capsules");
         Check(!GridSnap.CoversDesktopIcon(500,400,88,98,desktop),"capsule without icon overlap remains visible");
         Check((aligned.X-20)%120==0&&(aligned.Y-15)%130==0,"desktop grid phase starts at Explorer item origin without extra margin");
         var second=GridSnap.PlaceOnDesktop(270,20,0,0,1920,1080,88,98,new[]{aligned},desktop);
@@ -54,6 +54,20 @@ public static class GridSnapTests
         var expandedMove=GridSnap.PlaceOnDesktop(180,210,0,0,800,600,88,98,none,expanded);
         Check((expandedMove.X-16)%150==0&&(expandedMove.Y-12)%170==0,"Ctrl-wheel resized grid uses new large spacing");
         Check(GridSnap.PlaceOnDesktop(31,30,0,0,1920,1080,88,98,none,null).X==24,"missing Shell view falls back to old grid");
+        var sparse=new DesktopGrid{StepX=120,StepY=120,OriginX=0,OriginY=0,Icons=Enumerable.Range(0,30).Select(i=>new GridPoint(i%6*120,i/6*120)).ToArray()};
+        var sparseSpawn=GridSnap.SuggestSpawn(0,0,1920,1080,88,98,none,sparse);
+        Check(sparseSpawn.X>750&&sparseSpawn.X<1100&&sparseSpawn.Y>360&&sparseSpawn.Y<650,"sparse desktop spawns near screen center");
+        var leftDense=new DesktopGrid{StepX=120,StepY=120,OriginX=0,OriginY=0,Icons=Enumerable.Range(0,60).Select(i=>new GridPoint(i%8*120,i/8*120)).ToArray()};
+        var rightSpawn=GridSnap.SuggestSpawn(0,0,1920,1080,88,98,none,leftDense);
+        Check(rightSpawn.X>1100&&rightSpawn.Y>350&&rightSpawn.Y<650,"dense left desktop spawns on right center");
+        var topDense=new DesktopGrid{StepX=120,StepY=120,OriginX=0,OriginY=0,Icons=Enumerable.Range(0,60).Select(i=>new GridPoint(i%16*120,i/16*120)).ToArray()};
+        var bottomSpawn=GridSnap.SuggestSpawn(0,0,1920,1080,88,98,none,topDense);
+        Check(bottomSpawn.X>750&&bottomSpawn.X<1100&&bottomSpawn.Y>650,"dense top desktop spawns below center");
+        var noGrid=GridSnap.SuggestSpawn(0,0,1920,1080,88,98,none,null);
+        Check(noGrid.X>750&&noGrid.X<1100,"unavailable Shell grid still spawns near center");
+        var cluster=GridSnap.RightCluster(-1920,40,1920,1040,88,98);
+        Check(cluster.Length==5&&cluster.All(p=>p.X>-960&&p.X<0&&p.Y>40&&p.Y<1080),"five organizer capsules stay in right half of selected monitor");
+        Check(cluster.Select(p=>p.X+","+p.Y).Distinct().Count()==5,"organizer cluster positions are distinct");
         Console.WriteLine("PASS: "+checks+" grid placement checks.");
     }
 }

@@ -49,7 +49,7 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $src=@(Get-ChildItem (Join-Path $PSScriptRoot 'src') -Filter '*.cs' | ForEach-Object FullName)
 [OfflineBuild]::Build($src,$refs,(Join-Path $OutputDirectory 'MSBeatutyCapsule.exe'),'PocketGrid.Program',(Join-Path $PSScriptRoot 'src\app.manifest'),(Join-Path $PSScriptRoot 'src\app.ico'))
 Copy-Item (Join-Path $PSScriptRoot 'src\app.config') (Join-Path $OutputDirectory 'MSBeatutyCapsule.exe.config')
-foreach($test in @('CoreTests','PortableTests','HeadlessPortableTests','GridSnapTests','StartupTests','GlassBackdropTests','ReferenceTests','CustomIconTests')) {
+foreach($test in @('CoreTests','PortableTests','HeadlessPortableTests','GridSnapTests','StartupTests','GlassBackdropTests','ReferenceTests','CustomIconTests','UltimateOrganizerTests')) {
     $file=Join-Path $PSScriptRoot "tests\$test.cs"
     if(Test-Path $file) {
         [OfflineBuild]::Build(($src+@($file)),$refs,(Join-Path $OutputDirectory "$test.exe"),$test,(Join-Path $PSScriptRoot 'src\app.manifest'),(Join-Path $PSScriptRoot 'src\app.ico'))
