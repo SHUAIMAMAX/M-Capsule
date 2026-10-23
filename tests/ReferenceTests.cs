@@ -61,8 +61,13 @@ public static class ReferenceTests
             var photo=store.Add(imported,small);
             check(photo.Extension==".copy"&&File.ReadAllText(store.EntryPath(imported,photo))=="a photo","small photo copied into capsule");
             check(store.Add(imported,small)==photo,"small import deduplicates");
+            File.WriteAllText(small,"updated photo");
+            check(store.Add(imported,small)==photo&&File.ReadAllText(store.EntryPath(imported,photo))=="updated photo","reimport refreshes changed file without adding an entry");
+            using(var lockedSource=new FileStream(small,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
+                check(reject(()=>store.Add(imported,small))&&File.ReadAllText(store.EntryPath(imported,photo))=="updated photo","failed reimport preserves previous copy");
+            check(!Directory.GetFiles(Path.GetDirectoryName(store.EntryPath(imported,photo)),"~*").Any(),"failed reimport removes temporary file");
             File.Delete(small);
-            check(File.ReadAllText(store.EntryPath(imported,photo))=="a photo","copy survives original deletion");
+            check(File.ReadAllText(store.EntryPath(imported,photo))=="updated photo","copy survives original deletion");
             string shortcut=Path.Combine(root,"Desktop.lnk");File.WriteAllText(shortcut,"shortcut bytes");
             var ownedShortcut=store.Add(imported,shortcut);File.Delete(shortcut);
             check(ownedShortcut.Extension==".copy"&&File.ReadAllText(store.EntryPath(imported,ownedShortcut))=="shortcut bytes","shortcut survives original deletion");
@@ -70,11 +75,23 @@ public static class ReferenceTests
             var atLimit=store.Add(imported,boundary);check(atLimit.Extension==".copy"&&new FileInfo(store.EntryPath(imported,atLimit)).Length==ShortcutStore.CopyLimitBytes,"exactly 5 MiB is copied");
             string large=Path.Combine(root,"large.bin");using(var stream=File.Create(large))stream.SetLength(ShortcutStore.CopyLimitBytes+1);
             var mapped=store.Add(imported,large);check(mapped.Extension==".copy"&&new FileInfo(store.EntryPath(imported,mapped)).Length==ShortcutStore.CopyLimitBytes+1,"over 5 MiB is copied without a size cutoff");
+            string legacyLarge=Path.Combine(root,"old-large.bin");using(var stream=File.Create(legacyLarge))stream.SetLength(ShortcutStore.CopyLimitBytes+1);
+            var oldLargeReference=store.AddReference(imported,legacyLarge);
+            int oldLargeIndex=imported.Items.IndexOf(oldLargeReference);
+            var upgradedLarge=store.Add(imported,legacyLarge);
+            check(upgradedLarge.Extension==".copy"&&imported.Items.IndexOf(upgradedLarge)==oldLargeIndex&&
+                !imported.Items.Contains(oldLargeReference),"reimport converts a legacy large reference into an owned copy in place");
+            File.Delete(legacyLarge);
+            check(new FileInfo(store.EntryPath(imported,upgradedLarge)).Length==ShortcutStore.CopyLimitBytes+1,
+                "upgraded legacy large file remains available after source deletion");
             var loadedCopies=new Preferences();loadedCopies.Capsules.Add(imported);var copiesRoundtrip=Logic.Deserialize(Logic.Serialize(loadedCopies));
             check(File.Exists(store.EntryPath(copiesRoundtrip.Capsules[0],copiesRoundtrip.Capsules[0].Items[0])),"copied file survives configuration reload");
             check(reject(()=>Logic.Deserialize(Logic.Serialize(loadedCopies).Replace("<StoredName>photo.jpg</StoredName>","<StoredName>..\\escape.jpg</StoredName>"))),"reject copied-file traversal");
             var recoveredCopies=Recovery.Rebuild(store.Root);
             check(recoveredCopies.Capsules.Any(x=>x.Id==imported.Id&&x.Items.Any(y=>y.Extension==".copy"&&y.StoredName=="photo.jpg")),"recover copied file from storage");
+            File.WriteAllText(Path.Combine(Path.GetDirectoryName(store.EntryPath(imported,photo)),"~12345678"),"interrupted staging data");
+            check(Recovery.Rebuild(store.Root).Capsules.Any(x=>x.Id==imported.Id&&x.Items.Any(y=>y.Extension==".copy"&&y.StoredName=="photo.jpg")),
+                "recovery ignores interrupted reimport staging file beside valid copy");
             int ownedRecycled=0;store.Remove(imported,new[]{photo,ownedShortcut},path=>{ownedRecycled++;Directory.Delete(path,true);});
             check(ownedRecycled==2&&File.Exists(large),"removing copies never deletes source");
             string copyOut=Path.Combine(root,"copy-out.bin");File.Copy(store.EntryPath(imported,mapped),copyOut);

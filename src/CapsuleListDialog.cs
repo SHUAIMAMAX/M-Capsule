@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace PocketGrid
@@ -15,7 +17,8 @@ namespace PocketGrid
         readonly TextBlock selectionCount;
         readonly Button batchDelete,batchImage,batchAppearance;
         readonly TextBlock heading,help,format;
-        readonly Button selectAll,selectNone,close,languageButton;
+        readonly Button selectAll,selectNone,close,languageButton,addButton;
+        readonly Hyperlink disableStartupLink;
         public CapsuleListDialog(Manager manager)
         {
             this.manager=manager;
@@ -25,9 +28,14 @@ namespace PocketGrid
             var layout=new DockPanel{Margin=new Thickness(18)};Content=layout;
             var titleRow=new Grid();
             heading=new TextBlock{FontSize=19,FontWeight=FontWeights.SemiBold,VerticalAlignment=VerticalAlignment.Center};titleRow.Children.Add(heading);
-            languageButton=new Button{Content="⚙ 文/A",Width=88,Height=32,HorizontalAlignment=HorizontalAlignment.Right};
+            var titleActions=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right};
+            addButton=new Button{Content="+",Width=38,Height=32,FontSize=22,FontWeight=FontWeights.Bold,
+                Background=new SolidColorBrush(Color.FromRgb(32,154,96)),Foreground=Brushes.White,BorderBrush=new SolidColorBrush(Color.FromRgb(24,123,75))};
+            addButton.Click+=(s,e)=>{manager.NewCapsule();Refresh();};
+            titleActions.Children.Add(addButton);
+            languageButton=new Button{Content="⚙ 文/A",Width=88,Height=32,Margin=new Thickness(8,0,0,0)};
             languageButton.Click+=(s,e)=>{manager.SetLanguage(Lang.Next(Lang.Current));ApplyLanguage();Refresh();};
-            titleRow.Children.Add(languageButton);DockPanel.SetDock(titleRow,Dock.Top);layout.Children.Add(titleRow);
+            titleActions.Children.Add(languageButton);titleRow.Children.Add(titleActions);DockPanel.SetDock(titleRow,Dock.Top);layout.Children.Add(titleRow);
             help=new TextBlock{Margin=new Thickness(0,8,0,4)};
             DockPanel.SetDock(help,Dock.Top);layout.Children.Add(help);
             format=new TextBlock{TextWrapping=TextWrapping.Wrap,Foreground=Brushes.DimGray,Margin=new Thickness(0,0,0,12)};
@@ -44,8 +52,14 @@ namespace PocketGrid
             batchDelete.Click+=(s,e)=>{manager.DeleteCapsules(Selected());Refresh();};
             foreach(var control in new UIElement[]{selectAll,selectNone,selectionCount,batchImage,batchAppearance,batchDelete})tools.Children.Add(control);
             DockPanel.SetDock(tools,Dock.Top);layout.Children.Add(tools);
-            close=new Button{Width=76,Height=30,HorizontalAlignment=HorizontalAlignment.Right,IsCancel=true};
-            close.Click+=(s,e)=>Close();DockPanel.SetDock(close,Dock.Bottom);layout.Children.Add(close);
+            var footer=new DockPanel{LastChildFill=true,Margin=new Thickness(0,10,0,0)};
+            close=new Button{Width=76,Height=30,IsCancel=true};
+            close.Click+=(s,e)=>Close();DockPanel.SetDock(close,Dock.Right);footer.Children.Add(close);
+            var startupText=new TextBlock{FontSize=12,VerticalAlignment=VerticalAlignment.Center,TextWrapping=TextWrapping.Wrap};
+            disableStartupLink=new Hyperlink{Foreground=new SolidColorBrush(Color.FromRgb(30,100,170)),TextDecorations=TextDecorations.Underline,Cursor=Cursors.Hand};
+            disableStartupLink.Click+=(s,e)=>{if(manager.DisableStartupOnly())ApplyLanguage();};
+            startupText.Inlines.Add(disableStartupLink);footer.Children.Add(startupText);
+            DockPanel.SetDock(footer,Dock.Bottom);layout.Children.Add(footer);
             rows=new StackPanel();layout.Children.Add(new ScrollViewer{Content=rows,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
             ApplyLanguage();
             Refresh();
@@ -59,6 +73,10 @@ namespace PocketGrid
                 "複数選択で一括削除・画像変更・色変更。名前をクリックして個別に変更できます。");
             format.Text=CustomIcons.Hint;
             languageButton.ToolTip=Lang.Text("切换语言：中文 → English → 日本語","Language: English → 日本語 → 中文","言語切替：日本語 → 中文 → English");
+            addButton.ToolTip=Lang.Text("新建桌面胶囊","Create a desktop capsule","デスクトップにカプセルを作成");
+            disableStartupLink.Inlines.Clear();
+            disableStartupLink.Inlines.Add(new Run(Lang.Text("如果你不希望此工具开机自启，请点击我。",
+                "Click here to turn off launch at sign-in.","自動起動を解除するには、ここをクリックしてください。")));
             selectAll.Content=Lang.Text("全选","Select all","すべて選択");
             selectNone.Content=Lang.Text("清空","Clear","選択解除");
             batchImage.Content=Lang.Text("统一换图…","Set image for all…","画像を一括変更…");batchImage.ToolTip=CustomIcons.Hint;
@@ -105,7 +123,7 @@ namespace PocketGrid
                 appearance.Click+=(s,e)=>{manager.ChangeAppearance(current);Refresh();};
                 DockPanel.SetDock(appearance,Dock.Right);row.Children.Add(appearance);
                 var preview=new Image{Source=CustomIcons.Source(Settings.DataDirectory,current),Width=30,Height=30,Stretch=Stretch.Uniform,Margin=new Thickness(0,0,7,0),
-                    Opacity=current.HasCustomIcon?1:current.IconOpacityPercent/100.0};
+                    Opacity=current.IconOpacityPercent/100.0};
                 DockPanel.SetDock(preview,Dock.Left);row.Children.Add(preview);
                 var name=new Button{Content=current.Name,Height=30,HorizontalContentAlignment=HorizontalAlignment.Left,
                     Padding=new Thickness(9,0,9,0),ToolTip=Lang.Text("点击更名","Click to rename","クリックして名前を変更")};
@@ -114,6 +132,7 @@ namespace PocketGrid
             }
             if(rows.Children.Count==0)rows.Children.Add(new TextBlock{Text=Lang.Text("桌面上暂无胶囊。","No desktop capsules yet.","カプセルはまだありません。"),Margin=new Thickness(0,8,0,0)});
             UpdateSelectionControls();
+            addButton.IsEnabled=manager.Preferences.Capsules.Count<Logic.MaxCapsules;
         }
     }
 }

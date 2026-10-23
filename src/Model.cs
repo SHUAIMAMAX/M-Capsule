@@ -180,8 +180,28 @@ namespace PocketGrid
             if(Directory.Exists(target))return AddReference(c,target);
             var info=new FileInfo(target);
             if(!info.Exists)throw new IOException("文件不存在或暂时无法访问。");
+            int oldReferenceIndex=c.Items.FindIndex(e=>e.IsReference&&String.Equals(e.TargetPath,target,StringComparison.OrdinalIgnoreCase));
+            if(oldReferenceIndex>=0)
+            {
+                var oldReference=c.Items[oldReferenceIndex];c.Items.RemoveAt(oldReferenceIndex);
+                try
+                {
+                    var copied=Add(c,target);
+                    copied.Name=oldReference.Name;
+                    c.Items.Remove(copied);c.Items.Insert(oldReferenceIndex,copied);
+                    return copied;
+                }
+                catch{c.Items.Insert(oldReferenceIndex,oldReference);throw;}
+            }
             var existing=c.Items.FirstOrDefault(e=>e.Extension==".copy"&&String.Equals(e.TargetPath,target,StringComparison.OrdinalIgnoreCase));
-            if(existing!=null)return existing;
+            if(existing!=null)
+            {
+                CheckDirectory(Root);CheckDirectory(CapsuleDirectory(c));
+                string existingDir=Path.Combine(CapsuleDirectory(c),existing.Id);CheckDirectory(existingDir);
+                if(!Directory.Exists(existingDir))throw new IOException("已有条目的存储目录丢失，请先恢复或删除该条目。");
+                CopyFileAtomic(target,EntryPath(c,existing));
+                return existing;
+            }
             if(c.Items.Count>=Logic.MaxItems)throw new IOException("每个胶囊最多放 512 个条目。");
             CheckDirectory(Root);string dir=CapsuleDirectory(c);CheckDirectory(dir);
             var item=new Shortcut{Extension=".copy",TargetPath=target,StoredName=ValidateStoredName(info.Name),Name=Logic.IsShortcut(target)?Path.GetFileNameWithoutExtension(target):info.Name};
@@ -190,22 +210,29 @@ namespace PocketGrid
             Directory.CreateDirectory(entryDir);
             try
             {
-                string destination=EntryPath(c,item);
-                using(var input=new FileStream(target,FileMode.Open,FileAccess.Read,FileShare.Read))
-                using(var output=new FileStream(destination+".pending",FileMode.CreateNew,FileAccess.Write,FileShare.None))
-                {
-                    byte[] buffer=new byte[65536];int read;
-                    while((read=input.Read(buffer,0,buffer.Length))>0)
-                    {
-                        output.Write(buffer,0,read);
-                    }
-                    output.Flush(true);
-                }
-                File.Move(destination+".pending",destination);
-                File.SetAttributes(destination,File.GetAttributes(destination)&~FileAttributes.ReadOnly);
+                CopyFileAtomic(target,EntryPath(c,item));
                 c.Items.Add(item);return item;
             }
             catch { Directory.Delete(entryDir,true);throw; }
+        }
+        static void CopyFileAtomic(string source,string destination)
+        {
+            // Keep staging names short: capsule storage is already nested below the portable folder.
+            string pending=Path.Combine(Path.GetDirectoryName(destination),"~"+Guid.NewGuid().ToString("N").Substring(0,8));
+            try
+            {
+                using(var input=new FileStream(source,FileMode.Open,FileAccess.Read,FileShare.Read))
+                using(var output=new FileStream(pending,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+                {
+                    byte[] buffer=new byte[65536];int read;
+                    while((read=input.Read(buffer,0,buffer.Length))>0)output.Write(buffer,0,read);
+                    output.Flush(true);
+                }
+                if(File.Exists(destination))File.Replace(pending,destination,null);
+                else File.Move(pending,destination);
+                File.SetAttributes(destination,File.GetAttributes(destination)&~FileAttributes.ReadOnly);
+            }
+            finally{if(File.Exists(pending))File.Delete(pending);}
         }
         public bool MigrateSmallReference(Capsule c,Shortcut entry)
         {

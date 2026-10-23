@@ -16,6 +16,17 @@ public static class UltimateOrganizerTests
         Directory.CreateDirectory(root);
         try
         {
+            var emptyCapsules=new Preferences();emptyCapsules.Capsules.Clear();
+            var firstFive=OrganizingCapsules.Plan(emptyCapsules,new Random(7));
+            Check(firstFive.Length==5&&firstFive.Select(x=>x.Id).Distinct().Count()==5,"zero existing capsules still plans five new capsules");
+            Check(firstFive.Select(x=>x.ColorIndex).Distinct().Count()==5,"five planned capsules have distinct colors");
+            Check(firstFive.All(x=>x.IconOpacityPercent==100),"five organized capsules start fully opaque");
+            emptyCapsules.Capsules.AddRange(firstFive);
+            var nextFive=OrganizingCapsules.Plan(emptyCapsules,new Random(8));
+            Check(nextFive.Length==5&&!firstFive.Select(x=>x.Id).Intersect(nextFive.Select(x=>x.Id)).Any(),"repeated organizing plans five additional capsules");
+            emptyCapsules.Capsules.AddRange(nextFive);
+            while(emptyCapsules.Capsules.Count<Logic.MaxCapsules-4)emptyCapsules.Capsules.Add(new Capsule());
+            Check(Reject(()=>OrganizingCapsules.Plan(emptyCapsules,new Random(9))),"planner refuses to exceed capsule capacity");
             string desktop=Path.Combine(root,"Desktop");Directory.CreateDirectory(desktop);
             string link=Path.Combine(desktop,"App.lnk"),photo=Path.Combine(desktop,"照片.png");
             File.WriteAllText(link,"shortcut");File.WriteAllText(photo,"photo");

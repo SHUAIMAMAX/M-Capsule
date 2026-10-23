@@ -44,12 +44,12 @@ namespace PocketGrid
                 var hint=Text(CustomIcons.Hint,12,Muted);hint.TextWrapping=TextWrapping.Wrap;
                 hint.Margin=new Thickness(0,0,0,8);stack.Children.Add(hint);
                 var image=new Image{Source=currentIcon(),Width=48,Height=48,Stretch=Stretch.Uniform,Margin=new Thickness(0,0,10,0),
-                    Opacity=hasCustomIcon()!=true?opacityPercent()/100.0:1};
+                    Opacity=opacityPercent()/100.0};
                 var iconRow=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(0,0,0,14)};
                 var replace=new Button{Content=Lang.Text("替换图标…","Set image…","画像を変更…"),Width=100,Height=32,Margin=new Thickness(0,8,8,0)};
                 var restore=new Button{Content=Lang.Text("还原胶囊图","Restore image","画像を戻す"),Width=105,Height=32,Margin=new Thickness(0,8,8,0)};
                 var color=new Button{Content=Lang.Text("换色/透明度…","Color/opacity…","色・透明度…"),Width=125,Height=32,Margin=new Thickness(0,8,0,0),IsEnabled=!hasCustomIcon()};
-                Action refresh=()=>{image.Source=currentIcon();image.Opacity=hasCustomIcon()?1:opacityPercent()/100.0;color.IsEnabled=!hasCustomIcon();};
+                Action refresh=()=>{image.Source=currentIcon();image.Opacity=opacityPercent()/100.0;color.IsEnabled=!hasCustomIcon();};
                 replace.Click+=(s,e)=>{replaceIcon();refresh();};
                 restore.Click+=(s,e)=>{restoreIcon();refresh();};
                 color.Click+=(s,e)=>{changeAppearance();refresh();};

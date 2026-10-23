@@ -12,8 +12,25 @@ namespace PocketGrid
     }
     public sealed class DesktopGrid
     {
-        public double StepX, StepY, OriginX, OriginY;
+        public double StepX, StepY, OriginX, OriginY, IconSize;
         public GridPoint[] Icons=new GridPoint[0];
+    }
+    public sealed class CapsuleDimensions
+    {
+        public double Icon, Width, Height, IconRow, LabelRow;
+    }
+    public static class CapsuleSizing
+    {
+        public static CapsuleDimensions Calculate(DesktopGrid desktop)
+        {
+            double icon=desktop==null||desktop.IconSize<16||desktop.IconSize>256?64:desktop.IconSize;
+            double stepX=desktop==null||desktop.StepX<40?96:desktop.StepX;
+            double stepY=desktop==null||desktop.StepY<40?112:desktop.StepY;
+            icon=Math.Min(icon,Math.Min(stepX-8,stepY-26));
+            double width=Math.Min(stepX-2,Math.Max(48,icon+18));
+            double height=Math.Min(stepY-2,icon+30);
+            return new CapsuleDimensions{Icon=icon,Width=width,Height=height,IconRow=height-26,LabelRow=26};
+        }
     }
     public static class GridSnap
     {

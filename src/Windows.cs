@@ -22,6 +22,7 @@ namespace PocketGrid
         readonly TextBlock label;
         readonly Image icon;
         readonly Border frame;
+        readonly Grid root;
         readonly ContextMenu menu;
         readonly DispatcherTimer hoverTimer;
         bool pressed,moving;
@@ -36,15 +37,16 @@ namespace PocketGrid
             Width=88;Height=98;WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;
             AllowsTransparency=true;Background=Brushes.Transparent;ShowInTaskbar=false;ShowActivated=false;Topmost=false;
             Left=Logic.Clamp(capsule.X,-100000,100000);Top=Logic.Clamp(capsule.Y,-100000,100000);AllowDrop=true;UseLayoutRounding=true;
-            var root=new Grid{Background=Brushes.Transparent,Cursor=Cursors.Hand};
+            root=new Grid{Background=Brushes.Transparent,Cursor=Cursors.Hand};
             root.RowDefinitions.Add(new RowDefinition{Height=new GridLength(70)});root.RowDefinitions.Add(new RowDefinition{Height=new GridLength(28)});
             frame=new Border{CornerRadius=new CornerRadius(15),Background=Brushes.Transparent,Margin=new Thickness(6,0,6,0)};
             icon=new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=64,Height=64,Stretch=Stretch.Uniform,
-                Opacity=capsule.HasCustomIcon?1:capsule.IconOpacityPercent/100.0};
+                Opacity=capsule.IconOpacityPercent/100.0};
             frame.Child=icon;root.Children.Add(frame);
             label=Ui.Text(capsule.Name,12,Brushes.White);label.HorizontalAlignment=HorizontalAlignment.Center;label.MaxWidth=86;label.TextAlignment=TextAlignment.Center;
             label.Effect=new DropShadowEffect{BlurRadius=4,ShadowDepth=1,Opacity=.9,Color=Colors.Black};Grid.SetRow(label,1);root.Children.Add(label);
             Content=root;
+            ApplyDesktopSize(DesktopIconGrid.InWindowCoordinates(this));
             hoverTimer=new DispatcherTimer(DispatcherPriority.Input){Interval=TimeSpan.FromMilliseconds(500)};
             hoverTimer.Tick+=(s,e)=>
             {
@@ -54,7 +56,12 @@ namespace PocketGrid
             };
             menu=new ContextMenu();
             AddMenu("添加文件…",()=>manager.ChooseFiles(capsule));
-            AddMenu("更名或删除胶囊…",()=>manager.ShowCapsuleList());ContextMenu=menu;
+            AddMenu("更名…",()=>manager.RenameQuick(capsule));
+            AddMenu("改色…",()=>manager.ChangeColor(capsule));
+            AddMenu("改透明度…",()=>manager.ChangeOpacity(capsule));
+            AddMenu("删除…",()=>manager.DeleteCapsule(capsule));
+            menu.Items.Add(new Separator());
+            AddMenu("胶囊管理…",()=>manager.ShowCapsuleList());ContextMenu=menu;
             UpdateLanguage();
             root.MouseEnter+=(s,e)=>{frame.Background=Ui.Brush(25,255,255,255);if(!pressed){hoverTimer.Stop();hoverTimer.Start();}};
             root.MouseLeave+=(s,e)=>{frame.Background=Brushes.Transparent;hoverTimer.Stop();};
@@ -103,11 +110,15 @@ namespace PocketGrid
         void AddMenu(string title,Action action){var item=new MenuItem{Header=title};item.Click+=(s,e)=>action();menu.Items.Add(item);}
         public void UpdateLanguage()
         {
-            ToolTip=Lang.Text("悬停半秒展开 · 拖动后自动对齐桌面网格\n拖入文件保存副本；文件夹保存路径引用",
-                "Hover 0.5 s to open · Drag to align with the desktop grid\nDropped files are copied; folders remain linked",
-                "0.5 秒ホバーで開く · ドラッグでグリッドに整列\n追加したファイルはコピー、フォルダーは参照");
+            ToolTip=Lang.Text("悬停半秒展开 · 右键更名、改色、改透明度或删除\n拖入文件保存副本；文件夹保存路径引用",
+                "Hover 0.5 s to open · Right-click to rename, recolor, adjust transparency, or delete\nDropped files are copied; folders remain linked",
+                "0.5 秒ホバーで開く · 右クリックで名前・色・透明度の変更や削除\n追加したファイルはコピー、フォルダーは参照");
             ((MenuItem)menu.Items[0]).Header=Lang.Text("添加文件…","Add files…","ファイルを追加…");
-            ((MenuItem)menu.Items[1]).Header=Lang.Text("胶囊管理…","Capsule Manager…","カプセル管理…");
+            ((MenuItem)menu.Items[1]).Header=Lang.Text("更名…","Rename…","名前を変更…");
+            ((MenuItem)menu.Items[2]).Header=Lang.Text("改色…","Change color…","色を変更…");
+            ((MenuItem)menu.Items[3]).Header=Lang.Text("改透明度…","Change transparency…","透明度を変更…");
+            ((MenuItem)menu.Items[4]).Header=Lang.Text("删除…","Delete…","削除…");
+            ((MenuItem)menu.Items[6]).Header=Lang.Text("◆ 胶囊管理…","◆ Capsule Manager…","◆ カプセル管理…");
         }
         public static void OnDragOver(object sender,DragEventArgs e)
         {
@@ -141,7 +152,17 @@ namespace PocketGrid
             }
         }
         public void UpdateName(){label.Text=Capsule.Name;}
-        public void UpdateIcon(){icon.Source=CustomIcons.Source(Settings.DataDirectory,Capsule);icon.Opacity=Capsule.HasCustomIcon?1:Capsule.IconOpacityPercent/100.0;}
+        public void UpdateIcon(){icon.Source=CustomIcons.Source(Settings.DataDirectory,Capsule);icon.Opacity=Capsule.IconOpacityPercent/100.0;}
+        public void ApplyDesktopSize(DesktopGrid grid)
+        {
+            var size=CapsuleSizing.Calculate(grid);
+            Width=size.Width;Height=size.Height;
+            root.RowDefinitions[0].Height=new GridLength(size.IconRow);
+            root.RowDefinitions[1].Height=new GridLength(size.LabelRow);
+            icon.Width=size.Icon;icon.Height=size.Icon;
+            label.MaxWidth=Math.Max(42,size.Width-4);
+            frame.Margin=new Thickness(2,0,2,0);
+        }
     }
 
     internal sealed class GridWindow : Window
@@ -183,7 +204,7 @@ namespace PocketGrid
             backdropRefresh.Tick+=(s,e)=>{backdropRefresh.Stop();RenderBackdrop();};
             var header=new Grid();header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(30)});header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(1,GridUnitType.Star)});header.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(32)});
             header.Children.Add(new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=26,Height=26,
-                Opacity=capsule.HasCustomIcon?1:capsule.IconOpacityPercent/100.0});
+                Opacity=capsule.IconOpacityPercent/100.0});
             var heading=Ui.Text(capsule.Name,15,Ui.White);heading.FontWeight=FontWeights.SemiBold;heading.VerticalAlignment=VerticalAlignment.Center;heading.Margin=new Thickness(7,0,8,0);Grid.SetColumn(heading,1);header.Children.Add(heading);
             var add=Ui.Button("+",Lang.Text("一次添加多个文件；拖入的文件保存副本","Add multiple files; imported files are copied","複数のファイルを追加。取り込んだファイルはコピーされます"));add.Width=30;add.Height=30;add.Click+=(s,e)=>manager.ChooseFiles(Capsule);Grid.SetColumn(add,2);header.Children.Add(add);content.Children.Add(header);
             list=new ListBox{Background=Brushes.Transparent,BorderThickness=new Thickness(0),SelectionMode=SelectionMode.Extended,Padding=new Thickness(0),HorizontalContentAlignment=HorizontalAlignment.Center,Foreground=Ui.White,FocusVisualStyle=null};

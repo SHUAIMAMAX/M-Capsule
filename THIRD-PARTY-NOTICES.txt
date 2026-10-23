@@ -1,10 +1,10 @@
-M-Capsule 1.2.0 · 第三方声明
+M-Capsule 1.2.1 · 第三方声明
 
 本程序按 GNU GPL v3 发布，全文见 LICENSE.txt。任务栏功能使用未经修改的 TranslucentTB 2026.2 ExplorerTAP.dll；对应上游源码、许可和构建文件见单独源码包的 vendor 目录。本项目是独立项目，不属于 TranslucentTB 或 Microsoft 官方产品。Microsoft Detours 与 Windows Implementation Libraries 的版本、许可及来源见下方英文完整清单。便携包不附带 .NET Framework 或 Windows 系统库。
 
 ---
 
-M-Capsule 1.2.0 Portable
+M-Capsule 1.2.1 Portable
 
 This distribution is licensed under GNU GPL version 3. See LICENSE.txt.
 

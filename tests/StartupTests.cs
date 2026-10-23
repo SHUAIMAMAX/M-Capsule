@@ -71,6 +71,9 @@ public static class StartupTests
             new StartupRegistration(new ShortcutStartupStore(oldLink,foreignOld),foreignOld).Set(true);
             StartupSetup.RetireOldName(new MemoryStore(),oldExecutable,oldLink);
             Check(File.Exists(oldLink),"rename preserves another installation's old shortcut");
+            File.WriteAllText(oldLink,"damaged shortcut fixture");
+            StartupSetup.RetireOldName(new MemoryStore(),oldExecutable,oldLink);
+            Check(File.Exists(oldLink),"damaged old shortcut cannot block new startup or be deleted as owned");
             Console.WriteLine("TOTAL PASS "+count+"; shortcuts created only inside test directory; no real startup modified.");return 0;
         }
         catch(Exception ex){Console.WriteLine(ex);return 1;}

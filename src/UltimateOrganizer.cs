@@ -12,6 +12,22 @@ namespace PocketGrid
         public bool DestinationExists { get; internal set; }
         public string[] Files { get; internal set; }
     }
+    public static class OrganizingCapsules
+    {
+        public static Capsule[] Plan(Preferences preferences,Random random)
+        {
+            if(preferences==null||preferences.Capsules==null||random==null)throw new ArgumentNullException("preferences");
+            if(preferences.Capsules.Count>Logic.MaxCapsules-5)throw new IOException("需要预留 5 个胶囊位置。");
+            var used=new HashSet<int>();
+            var result=new Capsule[5];
+            for(int i=0;i<result.Length;i++)
+            {
+                int color;do{color=random.Next(130);}while(!used.Add(color));
+                result[i]=new Capsule{Name=Lang.Text("整理胶囊 ","Organize ","整理カプセル ")+(i+1),ColorIndex=color,IconOpacityPercent=100};
+            }
+            return result;
+        }
+    }
     public static class UltimateOrganizer
     {
         public static OrganizePlan Prepare(string desktop)

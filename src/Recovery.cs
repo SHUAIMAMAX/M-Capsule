@@ -67,8 +67,10 @@ namespace PocketGrid
                     string id=Path.GetFileName(entryDir);
                     if(c.Items.Count>=Logic.MaxItems)break;
                     if(!Logic.IsId(id)||(File.GetAttributes(entryDir)&FileAttributes.ReparsePoint)!=0)continue;
-                    var files=Directory.GetFiles(entryDir);
-                    if(files.Length!=1||files[0].EndsWith(".pending",StringComparison.OrdinalIgnoreCase)||(File.GetAttributes(files[0])&FileAttributes.ReparsePoint)!=0)continue;
+                    // A process interruption during atomic reimport can leave a staging file
+                    // beside the previous valid copy. Recover the valid copy in that case.
+                    var files=Directory.GetFiles(entryDir).Where(file=>!IsCopyStaging(file)).ToArray();
+                    if(files.Length!=1||(File.GetAttributes(files[0])&FileAttributes.ReparsePoint)!=0)continue;
                     string name=Path.GetFileName(files[0]);
                     try{ShortcutStore.ValidateStoredName(name);}catch(InvalidDataException){continue;}
                     c.Items.Add(new Shortcut{Id=id,Extension=".copy",StoredName=name,Name=Logic.IsShortcut(name)?Path.GetFileNameWithoutExtension(name):name});
@@ -76,6 +78,13 @@ namespace PocketGrid
                 p.Capsules.Add(c);
             }
             p.NextColor=p.Capsules.Count;return p;
+        }
+        static bool IsCopyStaging(string path)
+        {
+            string name=Path.GetFileName(path);
+            if(name.EndsWith(".pending",StringComparison.OrdinalIgnoreCase))return true;
+            return name.Length==9&&name[0]=='~'&&name.Skip(1).All(c=>
+                (c>='0'&&c<='9')||(c>='a'&&c<='f')||(c>='A'&&c<='F'));
         }
         public static void WriteSnapshot(string file,string xml)
         {

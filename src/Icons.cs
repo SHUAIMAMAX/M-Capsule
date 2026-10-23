@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows;
 using Color = System.Drawing.Color;
 using Pen = System.Drawing.Pen;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
@@ -39,6 +40,13 @@ namespace PocketGrid
             else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
             return Color.FromArgb((int)Math.Round((r+m)*255),(int)Math.Round((g+m)*255),(int)Math.Round((b+m)*255));
         }
+        static Color Secondary(Color color)
+        {
+            // Both halves are fully opaque. Keep the lighter half close to the
+            // chosen color so an opaque capsule does not look washed out.
+            return Color.FromArgb(255,
+                color.R+(255-color.R)/5,color.G+(255-color.G)/5,color.B+(255-color.B)/5);
+        }
         public static Bitmap Draw(int index, int pixels)
         {
             var bitmap = new Bitmap(pixels, pixels, PixelFormat.Format32bppArgb);
@@ -52,13 +60,13 @@ namespace PocketGrid
                     pill.AddArc(-27, -14, 28, 28, 90, 180);
                     pill.AddArc(-1, -14, 28, 28, 270, 180); pill.CloseFigure();
                     var color = Palette(index);
-                    var second = index < 0 ? Color.FromArgb(255, 207, 72) : Color.FromArgb(255, (color.R + 360) / 3, (color.G + 400) / 3, (color.B + 430) / 3);
+                    var second = index < 0 ? Color.FromArgb(255, 207, 72) : Secondary(color);
                     using (var b = new SolidBrush(color)) g.FillPath(b, pill);
                     var state = g.Save(); g.SetClip(pill);
                     using (var b = new SolidBrush(second)) g.FillRectangle(b, 0, -15, 30, 30);
-                    using (var b = new SolidBrush(Color.FromArgb(60, 255, 255, 255))) g.FillEllipse(b, -20, -10, 33, 8);
+                    using (var b = new SolidBrush(Color.FromArgb(25, 255, 255, 255))) g.FillEllipse(b, -20, -10, 33, 8);
                     g.Restore(state);
-                    using (var p = new Pen(Color.FromArgb(135, 255, 255, 255), 1.2f)) g.DrawPath(p, pill);
+                    using (var p = new Pen(Color.FromArgb(210, 255, 255, 255), 1.2f)) g.DrawPath(p, pill);
                     using (var p = new Pen(Color.FromArgb(55, 0, 0, 0), 1f)) g.DrawLine(p, 0, -13, 0, 13);
                 }
             }
@@ -68,13 +76,32 @@ namespace PocketGrid
         {
             ImageSource image;
             if (cache.TryGetValue(index, out image)) return image;
-            using (var bitmap = Draw(index, 128))
-            using (var stream = new MemoryStream())
-            {
-                bitmap.Save(stream, ImageFormat.Png); stream.Position = 0;
-                var value = new BitmapImage(); value.BeginInit(); value.CacheOption = BitmapCacheOption.OnLoad; value.StreamSource = stream; value.EndInit(); value.Freeze();
-                cache[index] = value; return value;
-            }
+            // Retain paths, fills and highlights as WPF vector geometry. The desktop
+            // image is rasterized only by WPF at its current display size and DPI.
+            var primary=Palette(index);
+            var secondary=index<0?Color.FromArgb(255,207,72):Secondary(primary);
+            var pill=new RectangleGeometry(new Rect(5,18,54,28),14,14);
+            var clipped=new DrawingGroup{ClipGeometry=pill};
+            clipped.Children.Add(new GeometryDrawing(
+                new SolidColorBrush(System.Windows.Media.Color.FromRgb(primary.R,primary.G,primary.B)),null,pill));
+            clipped.Children.Add(new GeometryDrawing(
+                new SolidColorBrush(System.Windows.Media.Color.FromRgb(secondary.R,secondary.G,secondary.B)),null,
+                new RectangleGeometry(new Rect(32,17,28,30))));
+            clipped.Children.Add(new GeometryDrawing(
+                new SolidColorBrush(System.Windows.Media.Color.FromArgb(25,255,255,255)),null,
+                new EllipseGeometry(new Rect(13,21,33,8))));
+            var rotated=new DrawingGroup{Transform=new RotateTransform(-45,32,32)};
+            rotated.Children.Add(clipped);
+            rotated.Children.Add(new GeometryDrawing(null,
+                new System.Windows.Media.Pen(new SolidColorBrush(System.Windows.Media.Color.FromArgb(210,255,255,255)),1.2),pill));
+            rotated.Children.Add(new GeometryDrawing(null,
+                new System.Windows.Media.Pen(new SolidColorBrush(System.Windows.Media.Color.FromArgb(55,0,0,0)),1),
+                new LineGeometry(new System.Windows.Point(32,19),new System.Windows.Point(32,45))));
+            var canvas=new DrawingGroup();
+            canvas.Children.Add(new GeometryDrawing(System.Windows.Media.Brushes.Transparent,null,
+                new RectangleGeometry(new Rect(0,0,64,64))));
+            canvas.Children.Add(rotated);
+            var value=new DrawingImage(canvas);value.Freeze();cache[index]=value;return value;
         }
         public static void SaveIco(string file, int index)
         {

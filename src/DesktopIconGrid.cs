@@ -26,7 +26,7 @@ namespace PocketGrid
                     if(value!=null)
                     {
                         var previous=Snapshot;
-                        bool spacingChanged=previous==null||previous.StepX!=value.StepX||previous.StepY!=value.StepY||
+                        bool spacingChanged=previous==null||previous.StepX!=value.StepX||previous.StepY!=value.StepY||previous.IconSize!=value.IconSize||
                             Phase(previous.OriginX,previous.StepX)!=Phase(value.OriginX,value.StepX)||
                             Phase(previous.OriginY,previous.StepY)!=Phase(value.OriginY,value.StepY);
                         bool iconsChanged=previous==null||!SameIcons(previous.Icons,value.Icons);
@@ -61,6 +61,7 @@ namespace PocketGrid
                 view=((IShellBrowser)browser).QueryActiveShellView();
                 var folder=(IFolderView)view;
                 Native.Point spacing=new Native.Point();folder.GetSpacing(ref spacing);
+                int iconPixels=ReadIconSize(view);
                 if(spacing.X<40||spacing.Y<40||spacing.X>500||spacing.Y>500)return null;
                 Native.Rect bounds;
                 IntPtr handle;((IShellView)view).GetWindow(out handle);
@@ -82,6 +83,7 @@ namespace PocketGrid
                 double originX=points.Count>0?points[0].X:bounds.Left+16;
                 double originY=points.Count>0?points[0].Y:bounds.Top+16;
                 return new DesktopGrid{StepX=spacing.X,StepY=spacing.Y,OriginX=originX,OriginY=originY,
+                    IconSize=iconPixels>=16&&iconPixels<=256?iconPixels:64,
                     Icons=points.ConvertAll(p=>new GridPoint(p.X,p.Y)).ToArray()};
             }
             finally
@@ -92,6 +94,30 @@ namespace PocketGrid
                 Marshal.ReleaseComObject(shell);
             }
         }
+        static int ReadIconSize(object view)
+        {
+            // IFolderView2 extends IFolderView. This read-only method reports the
+            // current image size in physical pixels, including Ctrl+wheel changes.
+            IntPtr unknown=IntPtr.Zero,interfacePointer=IntPtr.Zero;
+            try
+            {
+                unknown=Marshal.GetIUnknownForObject(view);
+                Guid iid=new Guid("1AF3A467-214F-4298-908E-06B03E0B39F9");
+                if(Marshal.QueryInterface(unknown,ref iid,out interfacePointer)!=0)return 64;
+                IntPtr vtable=Marshal.ReadIntPtr(interfacePointer);
+                IntPtr method=Marshal.ReadIntPtr(vtable,36*IntPtr.Size);
+                var get=(GetViewModeAndIconSize)Marshal.GetDelegateForFunctionPointer(method,typeof(GetViewModeAndIconSize));
+                int mode,size;
+                return get(interfacePointer,out mode,out size)==0&&size>=16&&size<=256?size:64;
+            }
+            catch(Exception ex){StartupLog.Write("desktop icon size unavailable: "+ex.Message);return 64;}
+            finally
+            {
+                if(interfacePointer!=IntPtr.Zero)Marshal.Release(interfacePointer);
+                if(unknown!=IntPtr.Zero)Marshal.Release(unknown);
+            }
+        }
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]delegate int GetViewModeAndIconSize(IntPtr view,out int mode,out int size);
         public static DesktopGrid InWindowCoordinates(Visual visual)
         {
             var grid=Snapshot;
@@ -100,9 +126,10 @@ namespace PocketGrid
             var matrix=source.CompositionTarget.TransformFromDevice;
             var origin=matrix.Transform(new Point(grid.OriginX,grid.OriginY));
             var step=matrix.Transform(new Point(grid.StepX,grid.StepY))-matrix.Transform(new Point(0,0));
+            var iconSize=matrix.Transform(new Point(grid.IconSize,0))-matrix.Transform(new Point(0,0));
             var icons=new GridPoint[grid.Icons.Length];
             for(int i=0;i<icons.Length;i++){var p=matrix.Transform(new Point(grid.Icons[i].X,grid.Icons[i].Y));icons[i]=new GridPoint(p.X,p.Y);}
-            return new DesktopGrid{StepX=step.X,StepY=step.Y,OriginX=origin.X,OriginY=origin.Y,Icons=icons};
+            return new DesktopGrid{StepX=step.X,StepY=step.Y,OriginX=origin.X,OriginY=origin.Y,IconSize=Math.Abs(iconSize.X),Icons=icons};
         }
         [ComImport,Guid("9BA05972-F6A8-11CF-A442-00A0C90A8F39"),ClassInterface(ClassInterfaceType.None)]sealed class CShellWindows{}
         [ComImport,Guid("85CB6900-4D95-11CF-960C-0080C7F4EE85"),InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]interface IShellWindows

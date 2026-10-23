@@ -65,6 +65,14 @@ public static class GridSnapTests
         Check(bottomSpawn.X>750&&bottomSpawn.X<1100&&bottomSpawn.Y>650,"dense top desktop spawns below center");
         var noGrid=GridSnap.SuggestSpawn(0,0,1920,1080,88,98,none,null);
         Check(noGrid.X>750&&noGrid.X<1100,"unavailable Shell grid still spawns near center");
+        var smallSize=CapsuleSizing.Calculate(new DesktopGrid{StepX=72,StepY=80,IconSize=32});
+        var mediumSize=CapsuleSizing.Calculate(new DesktopGrid{StepX=100,StepY=112,IconSize=48});
+        var largeSize=CapsuleSizing.Calculate(new DesktopGrid{StepX=160,StepY=174,IconSize=96});
+        Check(smallSize.Icon==32&&mediumSize.Icon==48&&largeSize.Icon==96,"capsule pictures track small, medium and large desktop icon pixels");
+        Check(smallSize.Icon<mediumSize.Icon&&mediumSize.Icon<largeSize.Icon,"all capsule sizes change with desktop icon mode");
+        Check(smallSize.Width<72&&mediumSize.Width<100&&largeSize.Width<160,"windows fit corresponding Explorer grid cells");
+        Check(smallSize.Height<80&&mediumSize.Height<112&&largeSize.Height<174,"capsules do not extend into adjacent grid rows");
+        Check(CapsuleSizing.Calculate(null).Icon==64,"missing Shell size uses medium fallback");
         var cluster=GridSnap.RightCluster(-1920,40,1920,1040,88,98);
         Check(cluster.Length==5&&cluster.All(p=>p.X>-960&&p.X<0&&p.Y>40&&p.Y<1080),"five organizer capsules stay in right half of selected monitor");
         Check(cluster.Select(p=>p.X+","+p.Y).Distinct().Count()==5,"organizer cluster positions are distinct");

@@ -1,10 +1,21 @@
 # 更新记录
 
+## v1.2.1
+
+- 胶囊管理窗口右上角加入绿色“+”新建胶囊；底部链接可清除当前副本的开机自启，程序继续运行。
+- 托盘右键按管理/外观/整理、自启、自助与退出分为三区；移除托盘“新建胶囊”“打开胶囊”和“清理自启并退出”。
+- 终极整理新建的 5 个胶囊明确使用 100% 图案不透明度；收敛矢量图案的浅色半片与高亮，避免视觉上显得发透。
+- 桌面胶囊右键新增四个独立操作：更名、改色、改透明度、删除；各自直接弹出对应窗口，无需进入胶囊管理。
+- 改色只修改默认胶囊图的颜色；透明度只修改当前图案的不透明度，也适用于自定义图片，名称保持可见。删除仍须确认。
+- 胶囊图案按桌面图标的小、中、大尺寸调整，默认图使用程序内矢量路径，无 2K 位图素材。保留 1.2.0 未发布候选版的数据修复。
+- 通过 348 项隔离检查；实机菜单操作与显示效果待用户试用确认。
+
 ## v1.2.0
 
 - 全面更名为 M-Capsule，包括程序、EXE、发布包和仓库；旧版升级需完整 ZIP，并保留 `Data`。
 - 胶囊管理加入复选与批量删除、统一图片、统一颜色/透明度；增加中文、英语、日语切换。
 - 新拖入的文件不限大小，默认复制到胶囊；支持从胶囊拖出并在目标接收后移除条目。
+- 同一路径重复导入会原子更新副本；失败保留旧副本，并改进复制中断后的恢复和深目录临时文件路径。
 - 终极整理模式每次新建五个胶囊，复用已有整理文件夹，同名文件加序号且不覆盖。
 - 完整便携 ZIP 不到 0.7 MB，源码 ZIP 保持独立。
 
@@ -67,11 +78,22 @@
 
 # Changelog — English
 
+## v1.2.1
+
+- Capsule Manager now has a green **+** for creation and a footer link that removes sign-in startup without closing the app.
+- Grouped the tray menu into capsule tools, startup settings, and help/exit; removed the tray's create, open, and cleanup-and-exit entries.
+- Ultimate Organizing capsules explicitly use full artwork opacity. Reduced the vector capsule's pale highlight so opaque artwork looks solid.
+- Added four independent desktop-capsule right-click actions: rename, change color, change transparency, and delete. Each opens its own focused dialog without entering Capsule Manager.
+- Color changes only the default artwork; transparency changes the current image, including custom images, while leaving its name visible. Deletion still requires confirmation.
+- Capsule artwork now follows small, medium, and large desktop icon sizes; default artwork is rendered from in-app vector paths with no 2K bitmap asset. The data fixes in the unpublished 1.2.0 candidate remain included.
+- Passed 348 isolated checks; live menu and sizing behavior await user testing.
+
 ## v1.2.0
 
 - Renamed the product, EXE, release files, and repository to M-Capsule. Upgrades from the old name require the full ZIP while preserving `Data`.
 - Added multiselection in Capsule Manager for batch deletion, one image, or one color/opacity, plus Chinese, English, and Japanese UI switching.
 - New files of any size are copied into capsules; dragging entries out removes them after an accepted drop.
+- Reimporting the same path atomically refreshes its copy. Failure preserves the old copy; recovery ignores interrupted staging files, and staging names remain short in deep folders.
 - Ultimate Organizing Mode creates five new capsules on each run, reuses the existing organizing folder, and numbers filename collisions without overwriting.
 - The complete portable ZIP stays under 0.7 MB; the source ZIP remains separate.
 

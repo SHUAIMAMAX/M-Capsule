@@ -118,7 +118,7 @@ namespace PocketGrid
             var w=new CapsuleWindow(this,c);
             if(delayReveal)w.Opacity=0;
             if(Windows.Count==0)w.ContentRendered+=(s,e)=>{Program.LogFirstFrame();if(freshPlacementPending)PlaceByDesktopIcons(c,false);RefreshDesktopGrid();if(pendingCopies.Count>0)copyMigration.Start();};
-            Windows[c.Id]=w;w.Show();w.UpdateIconOcclusion();
+            Windows[c.Id]=w;w.Show();w.ApplyDesktopSize(DesktopIconGrid.InWindowCoordinates(w));w.UpdateIconOcclusion();
         }
         public void Error(Exception ex) { ClosePopup(); MessageBox.Show(ex.Message,Ui.Product,MessageBoxButton.OK,MessageBoxImage.Information); }
         public void Save()
@@ -134,7 +134,15 @@ namespace PocketGrid
         {
             var m=new Forms.ContextMenuStrip();
             m.Items.Add(Lang.Text("◆ 胶囊管理 · Capsule Manager","◆ Capsule Manager","◆ カプセル管理"),null,(s,e)=>ShowCapsuleList());
-            m.Items.Add(Lang.Text("在桌面新建胶囊…","New desktop capsule…","デスクトップにカプセルを作成…"),null,(s,e)=>NewCapsule());
+            var appearance=new Forms.ToolStripMenuItem(Lang.Text("任务栏外观","Taskbar appearance","タスクバーの外観"));
+            foreach(var pair in new[]{new[]{"normal",Lang.Text("正常","Normal","標準")},new[]{"acrylic",Lang.Text("毛玻璃","Blur","ぼかし")},new[]{"clear",Lang.Text("全透明","Transparent","透明")}})
+            {
+                string mode=pair[0];var item=new Forms.ToolStripMenuItem(pair[1]){Checked=Preferences.TaskbarMode==mode};
+                item.Click+=(s,e)=>{SetTaskbarMode(mode);};appearance.DropDownItems.Add(item);
+            }
+            m.Items.Add(appearance);
+            m.Items.Add(Lang.Text("终极整理模式…","Ultimate organizing mode…","究極整理モード…"),null,async (s,e)=>await RunUltimateOrganizer());
+            m.Items.Add(new Forms.ToolStripSeparator());
             var startup=new Forms.ToolStripMenuItem(Lang.Text("开机自动启动","Start with Windows","Windows と同時に起動")) { Checked=Preferences.StartWithWindows };
             startup.Click+=(s,e)=>{try{bool enabled=!Preferences.StartWithWindows;Settings.SetStartup(enabled);Preferences.StartWithWindows=enabled;Save();startup.Checked=enabled;}catch(Exception ex){Error(ex);}};
             m.Items.Add(startup);
@@ -152,21 +160,8 @@ namespace PocketGrid
                 }
                 catch(Exception ex){Error(ex);}
             });
-            var appearance=new Forms.ToolStripMenuItem(Lang.Text("任务栏外观","Taskbar appearance","タスクバーの外観"));
-            foreach(var pair in new[]{new[]{"normal",Lang.Text("正常","Normal","標準")},new[]{"acrylic",Lang.Text("毛玻璃","Blur","ぼかし")},new[]{"clear",Lang.Text("全透明","Transparent","透明")}})
-            {
-                string mode=pair[0];var item=new Forms.ToolStripMenuItem(pair[1]){Checked=Preferences.TaskbarMode==mode};
-                item.Click+=(s,e)=>{SetTaskbarMode(mode);};appearance.DropDownItems.Add(item);
-            }
-            m.Items.Add(appearance);
-            m.Items.Add(Lang.Text("终极整理模式…","Ultimate organizing mode…","究極整理モード…"),null,async (s,e)=>await RunUltimateOrganizer());
             m.Items.Add(new Forms.ToolStripSeparator());
-            var open=new Forms.ToolStripMenuItem(Lang.Text("打开胶囊","Open capsule","カプセルを開く"));
-            foreach(var capsule in Preferences.Capsules){var c=capsule;open.DropDownItems.Add(c.Name,null,(s,e)=>Open(c));}
-            open.Enabled=Preferences.Capsules.Count>0;m.Items.Add(open);
-            m.Items.Add(Lang.Text("使用说明","User guide","使い方"),null,(s,e)=>{try{Process.Start(new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"使用说明.txt")){UseShellExecute=true});}catch(Exception ex){Error(ex);}});
-            m.Items.Add(new Forms.ToolStripSeparator());
-            m.Items.Add(Lang.Text("清理自启并退出","Remove startup and exit","自動起動を解除して終了"),null,(s,e)=>DisableStartupAndExit());
+            m.Items.Add(Lang.Text("帮助","Help","ヘルプ"),null,(s,e)=>{try{Process.Start(new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"使用说明.txt")){UseShellExecute=true});}catch(Exception ex){Error(ex);}});
             m.Items.Add(Lang.Text("退出","Exit","終了"),null,(s,e)=>Exit());
             return m;
         }
@@ -286,15 +281,19 @@ namespace PocketGrid
             var old=Popup;Popup=null;if(old!=null)old.Close();
         }
         public void Reposition(){ClosePopup();foreach(var c in Preferences.Capsules){var w=Windows[c.Id];w.ClampPosition();w.UpdateIconOcclusion();if(w.IsVisible)Native.DesktopLayer(w.Handle,Native.DesktopForeground());}Save();}
-        void RefreshDesktopGrid()
+        void RefreshDesktopGrid(bool force=false)
         {
-            if(RuntimeMode.Sandbox||disposed||(DateTime.UtcNow-lastGridRefresh).TotalSeconds<1.5)return;
+            if(RuntimeMode.Sandbox||disposed||(!force&&(DateTime.UtcNow-lastGridRefresh).TotalSeconds<1.5))return;
             lastGridRefresh=DateTime.UtcNow;
             DesktopIconGrid.Refresh((spacingChanged,iconsChanged)=>
             {
                 if(disposed)return;
                 if(freshPlacementPending){PlaceByDesktopIcons(Preferences.Capsules[0],false);freshPlacementPending=false;}
-                if(spacingChanged)Reposition();
+                if(spacingChanged)
+                {
+                    foreach(var w in Windows.Values)w.ApplyDesktopSize(DesktopIconGrid.InWindowCoordinates(w));
+                    Reposition();
+                }
                 else if(iconsChanged)foreach(var w in Windows.Values)w.UpdateIconOcclusion();
             });
         }
@@ -315,7 +314,7 @@ namespace PocketGrid
         {
             if(Preferences.Capsules.Count>=Logic.MaxCapsules)throw new IOException("最多创建 32 个胶囊。");
             var c=new Capsule{Name=Logic.CleanName(name),ColorIndex=Preferences.NextColor++,X=32+Preferences.Capsules.Count%6*92,Y=140+Preferences.Capsules.Count/6*110};
-            Preferences.Capsules.Add(c);CreateWindow(c);PlaceByDesktopIcons(c,true);Save();if(Windows[c.Id].IsVisible)Native.DesktopLayer(Windows[c.Id].Handle,true);RefreshTray();return c;
+            Preferences.Capsules.Add(c);CreateWindow(c);PlaceByDesktopIcons(c,true);Save();if(Windows[c.Id].IsVisible)Native.DesktopLayer(Windows[c.Id].Handle,true);RefreshTray();RefreshDesktopGrid(true);return c;
         }
         async Task RunUltimateOrganizer()
         {
@@ -350,16 +349,14 @@ namespace PocketGrid
         void CreateFiveOrganizingCapsules(System.Drawing.Rectangle screen)
         {
             var created=new List<Capsule>();
-            var colors=new HashSet<int>();
-            var random=new Random(Guid.NewGuid().GetHashCode());
+            var planned=OrganizingCapsules.Plan(Preferences,new Random(Guid.NewGuid().GetHashCode()));
             int nextColor=Preferences.NextColor;
             var positions=GridSnap.RightCluster(screen.Left,screen.Top,screen.Width,screen.Height,88,98);
             try
             {
-                for(int i=0;i<5;i++)
+                for(int i=0;i<planned.Length;i++)
                 {
-                    int color;do{color=random.Next(130);}while(!colors.Add(color));
-                    var c=new Capsule{Name=Lang.Text("整理胶囊 ","Organize ","整理カプセル ")+(i+1),ColorIndex=color};
+                    var c=planned[i];
                     Preferences.Capsules.Add(c);created.Add(c);CreateWindow(c,true);
                     var position=Windows[c.Id].FromPixels(new System.Windows.Point(positions[i].X,positions[i].Y));
                     var w=Windows[c.Id];w.Left=position.X;w.Top=position.Y;w.ClampPosition();w.Remember();
@@ -368,6 +365,7 @@ namespace PocketGrid
                 Preferences.NextColor=nextColor+5;
                 Settings.Save(Preferences);RefreshTray();
                 foreach(var c in created)Native.DesktopLayer(Windows[c.Id].Handle,true);
+                RefreshDesktopGrid(true);
             }
             catch
             {
@@ -398,6 +396,13 @@ namespace PocketGrid
             try{name=Ui.AskName(Lang.Text("胶囊更名","Rename capsule","カプセル名の変更"),c.Name,()=>ChangeIcon(c),()=>RestoreIcon(c),()=>CustomIcons.Source(Settings.DataDirectory,c),
                 ()=>ChangeAppearance(c),()=>c.HasCustomIcon,()=>c.IconOpacityPercent);}finally{Dialogs--;}
             if(name==null)return;RenameCapsule(c,name);
+        }
+        public void RenameQuick(Capsule c)
+        {
+            ClosePopup();Dialogs++;string name;
+            try{name=Ui.AskName(Lang.Text("胶囊更名","Rename capsule","カプセル名の変更"),c.Name);}
+            finally{Dialogs--;}
+            if(name!=null)RenameCapsule(c,name);
         }
         internal void RenameCapsule(Capsule c,string name)
         {
@@ -467,6 +472,41 @@ namespace PocketGrid
                 catch(Exception ex){c.ColorIndex=oldColor;c.IconOpacityPercent=oldOpacity;Error(new IOException("胶囊外观未能保存："+ex.Message,ex));return;}
                 Windows[c.Id].UpdateIcon();
                 if(Popup!=null&&Popup.Capsule.Id==c.Id)ClosePopup();
+            }
+            finally{Dialogs--;}
+        }
+        public void ChangeColor(Capsule c)
+        {
+            if(c.HasCustomIcon)
+            {
+                MessageBox.Show(Lang.Text("这个胶囊使用自定义图片。请先在胶囊管理中还原默认胶囊图，再换色。",
+                    "This capsule uses a custom image. Restore the default image in Capsule Manager before changing its color.",
+                    "このカプセルはカスタム画像を使用しています。色を変える前に管理画面で既定画像に戻してください。"),Ui.Product);
+                return;
+            }
+            ClosePopup();Dialogs++;
+            try
+            {
+                var dialog=new CapsuleAppearanceDialog(c,AppearanceEditMode.ColorOnly);
+                if(dialog.ShowDialog()!=true)return;
+                int old=c.ColorIndex;c.ColorIndex=dialog.SelectedColor;
+                try{Settings.Save(Preferences);}
+                catch(Exception ex){c.ColorIndex=old;Error(new IOException("胶囊颜色未能保存："+ex.Message,ex));return;}
+                Windows[c.Id].UpdateIcon();
+            }
+            finally{Dialogs--;}
+        }
+        public void ChangeOpacity(Capsule c)
+        {
+            ClosePopup();Dialogs++;
+            try
+            {
+                var dialog=new CapsuleAppearanceDialog(c,AppearanceEditMode.OpacityOnly,CustomIcons.Source(Settings.DataDirectory,c));
+                if(dialog.ShowDialog()!=true)return;
+                int old=c.IconOpacityPercent;c.IconOpacityPercent=dialog.SelectedOpacity;
+                try{Settings.Save(Preferences);}
+                catch(Exception ex){c.IconOpacityPercent=old;Error(new IOException("胶囊透明度未能保存："+ex.Message,ex));return;}
+                Windows[c.Id].UpdateIcon();
             }
             finally{Dialogs--;}
         }
@@ -578,18 +618,25 @@ namespace PocketGrid
             }
             catch(Exception ex){Error(ex);}
         }
-        public void DisableStartupAndExit()
+        public bool DisableStartupOnly()
         {
-            if(disposed)return;
-            if(organizing){Notify("桌面整理仍在进行，完成后再清理自启并退出。");return;}
+            if(disposed)return false;
+            bool previous=Preferences.StartWithWindows;
             try
             {
                 Settings.SetStartup(false);
                 Preferences.StartWithWindows=false;
                 Settings.Save(Preferences);
-                Exit();
+                RefreshTray();
+                return true;
             }
-            catch(Exception ex){Error(new IOException("未能完成自启清理或配置保存，程序仍在运行："+ex.Message,ex));}
+            catch(Exception ex)
+            {
+                Preferences.StartWithWindows=previous;
+                if(previous)try{Settings.SetStartup(true);}catch(Exception restore){StartupLog.Write("startup rollback failed "+restore);}
+                Error(new IOException("未能关闭开机自启，程序仍在运行："+ex.Message,ex));
+                return false;
+            }
         }
         public void Exit(){if(disposed)return;if(organizing){Notify("桌面整理仍在进行，完成后再退出。");return;}ClosePopup();Save();Dispose();Application.Current.Shutdown();}
         public void Dispose()

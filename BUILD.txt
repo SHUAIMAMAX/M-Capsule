@@ -1,10 +1,10 @@
-M-Capsule 1.2.0 · 构建与测试
+M-Capsule 1.2.1 · 构建与测试
 
 目标为 Windows 11 x64 / .NET Framework 4.8。项目由用户提供的旧版源码逐步迭代，原始压缩包保持独立。本发布仅打包正式便携程序；源码 ZIP 单独提供。
 
 离线构建：在 Windows 上用 PowerShell 7 运行 `pwsh -NoProfile -File .\build-local.ps1`，需有 Roslyn 编译组件。SDK 构建：运行 `build.ps1`，需 .NET SDK 8 或更新；此发布主要验证离线构建。打包：对新目录运行 `package.ps1 -RuntimeDirectory <build目录> -Destination <新输出目录>`。
 
-构建脚本生成测试程序，但不会自动执行。无界面隔离测试有 CoreTests、GridSnapTests、HeadlessPortableTests、StartupTests、GlassBackdropTests、ReferenceTests、CustomIconTests、UltimateOrganizerTests。测试目录中的文件、配置和快捷方式是临时样例；不写真实 HKCU Run、用户启动文件夹或桌面，不调用真实任务栏。PortableTests 会打开 WPF 窗口，按使用者要求没有运行。GlassBackdropTests 使用合成壁纸离屏检查像素，不截取真实桌面。
+构建脚本生成测试程序，但不会自动执行。无界面隔离测试有 CoreTests、GridSnapTests、HeadlessPortableTests、StartupTests、GlassBackdropTests、ReferenceTests、CustomIconTests、UltimateOrganizerTests。测试目录中的文件、配置和快捷方式是临时样例；不写真实 HKCU Run、用户启动文件夹或桌面，不调用真实任务栏。PortableTests 会打开 WPF 测试窗口，本轮 1.2.1 自检没有运行。GlassBackdropTests 使用合成壁纸离屏检查像素，不截取真实桌面。
 
 关键源码：`src/Model.cs` 处理 XML 配置与文件副本/引用；`src/Settings.cs` 管理便携 Data；`src/Startup.cs` 核验启动快捷方式与旧版迁移；`src/Manager.cs` 管理胶囊、托盘与整理流程；`src/Windows.cs` 处理窗口和拖放；`src/CapsuleListDialog.cs` 提供复选管理与语言入口；`src/UltimateOrganizer.cs` 移动及回退桌面文件；`src/GlassBackdrop.cs` 取样并模糊静态壁纸；`src/Taskbar.cs` 调用 ExplorerTAP。对应第三方源代码和许可在 `vendor` 与声明文件中。
 
@@ -12,13 +12,13 @@ EXE 未签名。展开面板是逐像素透明 WPF 窗口，模糊的是静态�
 
 ---
 
-M-Capsule 1.2.0 · Build and tests
+M-Capsule 1.2.1 · Build and tests
 
 Target: Windows 11 x64 / .NET Framework 4.8. The project evolved from the older source archive supplied by the user; that original archive is kept separately. This release packages the real portable app, with a separate source ZIP.
 
 For an offline build on Windows, run `pwsh -NoProfile -File .\build-local.ps1` with PowerShell 7 and Roslyn compiler assemblies available. For an SDK build, run `build.ps1` with .NET SDK 8 or later; this release primarily validates the offline build. Package with `package.ps1 -RuntimeDirectory <build folder> -Destination <new output folder>`.
 
-The build compiles but does not automatically run tests. Isolated headless suites are CoreTests, GridSnapTests, HeadlessPortableTests, StartupTests, GlassBackdropTests, ReferenceTests, CustomIconTests, and UltimateOrganizerTests. Their sample files, settings, and shortcuts stay in test directories. They do not write real HKCU Run, the user's Startup folder or Desktop, or call the real taskbar. PortableTests opens WPF windows and was not run at the user's request. GlassBackdropTests uses synthetic wallpaper and offscreen pixel checks; it does not capture the desktop.
+The build compiles but does not automatically run tests. Isolated headless suites are CoreTests, GridSnapTests, HeadlessPortableTests, StartupTests, GlassBackdropTests, ReferenceTests, CustomIconTests, and UltimateOrganizerTests. Their sample files, settings, and shortcuts stay in test directories. They do not write real HKCU Run, the user's Startup folder or Desktop, or call the real taskbar. PortableTests opens WPF test windows and was not run for this v1.2.1 check. GlassBackdropTests uses synthetic wallpaper and offscreen pixel checks; it does not capture the desktop.
 
 Source map: `src/Model.cs` handles XML settings and copied/path-referenced items; `src/Settings.cs` manages portable Data; `src/Startup.cs` verifies startup shortcuts and handles legacy migration; `src/Manager.cs` coordinates capsules, tray, and organizing; `src/Windows.cs` implements windows and drag/drop; `src/CapsuleListDialog.cs` provides multiselection and the language control; `src/UltimateOrganizer.cs` moves and rolls back Desktop files; `src/GlassBackdrop.cs` samples/blurs static wallpaper; and `src/Taskbar.cs` calls ExplorerTAP. Matching third-party source and licenses are in `vendor` and the notices.
 

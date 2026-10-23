@@ -22,7 +22,7 @@ namespace PocketGrid
             startupWatch.Restart();
             RuntimeMode.Initialize(args);
             StartupLog.Write("entry background="+args.Contains("--background")+" executable="+Settings.Executable+" data="+Settings.DataDirectory);
-            if(args.Any(a=>a=="--cleanup"||a=="--finish-uninstall"||a=="--uninstall")) { MessageBox.Show("便携版无需安装器。请在托盘右键选择“清理自启并退出”，按需备份 Data，然后删除便携文件夹。若已删除程序，可从 shell:startup 手动移除本程序的启动快捷方式。",Ui.Product); return; }
+            if(args.Any(a=>a=="--cleanup"||a=="--finish-uninstall"||a=="--uninstall")) { MessageBox.Show("便携版无需安装器。请在胶囊管理窗口底部关闭开机自启，然后从托盘退出；按需备份 Data 后删除便携文件夹。若已删除程序，可从 shell:startup 手动移除本程序的启动快捷方式。",Ui.Product); return; }
             string[] launchArgs=args.Where(a=>a!="--sandbox").ToArray();
             string id=launchArgs.Length==2&&launchArgs[0]=="--capsule"&&Logic.IsId(launchArgs[1])?launchArgs[1]:null;
             Native.SetCurrentProcessExplicitAppUserModelID(id==null?"M.Capsule":"M.Capsule."+id);
@@ -62,7 +62,7 @@ namespace PocketGrid
                     manager=new Manager();app.Exit+=(s,e)=>manager.Dispose();
                     StartupLog.Write("manager ready capsules="+manager.Windows.Count);
                     if(id!=null)app.Dispatcher.BeginInvoke(new Action(()=>manager.OpenById(id)));
-                    if(args.Contains("--welcome"))manager.Notify("已在桌面放置胶囊。单击展开，右键可更名；把快捷方式拖进来即可。托盘右键可新建胶囊和切换任务栏外观。");
+                    if(args.Contains("--welcome"))manager.Notify("已在桌面放置胶囊。悬停展开，右键可更名；把文件拖进来即可。托盘右键打开胶囊管理，点击绿色 + 可新建胶囊。");
                     app.Run();
                 }
                 catch(Exception ex){StartupLog.Write("startup failure "+ex);MessageBox.Show("无法启动：\n"+ex.Message+"\n原配置未被重置。",Ui.Product);if(manager!=null)manager.Dispose();}
