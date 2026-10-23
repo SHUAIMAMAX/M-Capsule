@@ -13,6 +13,7 @@ namespace PocketGrid
         public string Extension { get; set; } = ".lnk";
         public string Name { get; set; } = "";
         public string TargetPath { get; set; } = "";
+        public string StoredName { get; set; } = "";
         public bool IsReference { get { return Extension == ".ref"; } }
     }
     public sealed class Capsule
@@ -28,7 +29,7 @@ namespace PocketGrid
     }
     public sealed class Preferences
     {
-        public int Version { get; set; } = 3;
+        public int Version { get; set; } = 4;
         public long Revision { get; set; }
         public int NextColor { get; set; }
         public string TaskbarMode { get; set; } = "normal";
@@ -89,7 +90,7 @@ namespace PocketGrid
             using (var reader = XmlReader.Create(input, settings))
             {
                 var p = (Preferences)new XmlSerializer(typeof(Preferences)).Deserialize(reader);
-                if ((p.Version != 2 && p.Version != 3) || p.Capsules == null || p.Capsules.Count > MaxCapsules) throw new InvalidDataException("配置版本或胶囊数量无效。");
+                if ((p.Version != 2 && p.Version != 3 && p.Version != 4) || p.Capsules == null || p.Capsules.Count > MaxCapsules) throw new InvalidDataException("配置版本或胶囊数量无效。");
                 var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var c in p.Capsules)
                 {
@@ -99,11 +100,12 @@ namespace PocketGrid
                     var entryIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var entry in c.Items)
                     {
-                        if (entry == null || !IsId(entry.Id) || !entryIds.Add(entry.Id) || (entry.Extension != ".lnk" && entry.Extension != ".url" && entry.Extension != ".ref")) throw new InvalidDataException("条目配置无效。");
+                        if (entry == null || !IsId(entry.Id) || !entryIds.Add(entry.Id) || (entry.Extension != ".lnk" && entry.Extension != ".url" && entry.Extension != ".ref" && entry.Extension != ".copy")) throw new InvalidDataException("条目配置无效。");
                         if(entry.IsReference) ShortcutStore.ValidateTarget(entry.TargetPath);
+                        if(entry.Extension==".copy") ShortcutStore.ValidateStoredName(entry.StoredName);
                     }
                 }
-                p.Version=3;
+                p.Version=4;
                 if (!new[] { "normal", "acrylic", "clear" }.Contains(p.TaskbarMode)) p.TaskbarMode = "normal";
                 p.NextColor = Math.Max(0, p.NextColor);
                 if (p.Revision < 0 || p.Revision == long.MaxValue) throw new InvalidDataException("配置序号无效。");
@@ -113,6 +115,7 @@ namespace PocketGrid
     }
     public sealed class ShortcutStore
     {
+        public const long CopyLimitBytes = 5L * 1024 * 1024;
         public readonly string Root;
         public ShortcutStore(string root) { Root = Path.GetFullPath(root); }
         public string CapsuleDirectory(Capsule c)
@@ -124,8 +127,18 @@ namespace PocketGrid
         {
             CapsuleDirectory(c);
             if(e.IsReference) { if(!Logic.IsId(e.Id))throw new InvalidDataException("条目 ID 无效。");return ValidateTarget(e.TargetPath); }
-            if (!Logic.IsId(e.Id) || (e.Extension != ".lnk" && e.Extension != ".url")) throw new InvalidDataException("快捷方式 ID 无效。");
+            if (!Logic.IsId(e.Id)) throw new InvalidDataException("条目 ID 无效。");
+            if(e.Extension==".copy")return Path.Combine(CapsuleDirectory(c),e.Id,ValidateStoredName(e.StoredName));
+            if(e.Extension != ".lnk" && e.Extension != ".url") throw new InvalidDataException("条目类型无效。");
             return Path.Combine(CapsuleDirectory(c), e.Id + e.Extension);
+        }
+        public static string ValidateStoredName(string name)
+        {
+            if(String.IsNullOrWhiteSpace(name)||name=="."||name==".."||name!=Path.GetFileName(name)||name.IndexOfAny(Path.GetInvalidFileNameChars())>=0||name.EndsWith(".")||name.EndsWith(" ")||name.Length>240)
+                throw new InvalidDataException("存储文件名无效。");
+            string stem=Path.GetFileNameWithoutExtension(name).TrimEnd('.').ToUpperInvariant();
+            if(new[]{"CON","PRN","AUX","NUL","COM1","COM2","COM3","COM4","COM5","COM6","COM7","COM8","COM9","LPT1","LPT2","LPT3","LPT4","LPT5","LPT6","LPT7","LPT8","LPT9"}.Contains(stem))throw new InvalidDataException("存储文件名无效。");
+            return name;
         }
         static void CheckDirectory(string dir)
         {
@@ -159,6 +172,57 @@ namespace PocketGrid
             c.Items.Add(item);
             return item;
         }
+        public Shortcut Add(Capsule c,string source)
+        {
+            string target=ValidateTarget(source);
+            if(Directory.Exists(target))return AddReference(c,target);
+            var info=new FileInfo(target);
+            if(!info.Exists)throw new IOException("文件不存在或暂时无法访问。");
+            if(info.Length>CopyLimitBytes)return AddReference(c,target);
+            var existing=c.Items.FirstOrDefault(e=>e.Extension==".copy"&&String.Equals(e.TargetPath,target,StringComparison.OrdinalIgnoreCase));
+            if(existing!=null)return existing;
+            if(c.Items.Count>=Logic.MaxItems)throw new IOException("每个胶囊最多放 512 个条目。");
+            CheckDirectory(Root);string dir=CapsuleDirectory(c);CheckDirectory(dir);
+            var item=new Shortcut{Extension=".copy",TargetPath=target,StoredName=ValidateStoredName(info.Name),Name=Logic.IsShortcut(target)?Path.GetFileNameWithoutExtension(target):info.Name};
+            string entryDir=Path.Combine(dir,item.Id);
+            if(Directory.Exists(entryDir)||File.Exists(entryDir))throw new IOException("条目存储位置已被占用。");
+            Directory.CreateDirectory(entryDir);
+            try
+            {
+                string destination=EntryPath(c,item);
+                using(var input=new FileStream(target,FileMode.Open,FileAccess.Read,FileShare.Read))
+                using(var output=new FileStream(destination+".pending",FileMode.CreateNew,FileAccess.Write,FileShare.None))
+                {
+                    byte[] buffer=new byte[65536];int read;long total=0;
+                    while((read=input.Read(buffer,0,buffer.Length))>0)
+                    {
+                        total+=read;if(total>CopyLimitBytes)throw new IOException("文件复制时超过 5 MiB，请重新拖入以保存引用。");
+                        output.Write(buffer,0,read);
+                    }
+                    output.Flush(true);
+                }
+                File.Move(destination+".pending",destination);
+                File.SetAttributes(destination,File.GetAttributes(destination)&~FileAttributes.ReadOnly);
+                c.Items.Add(item);return item;
+            }
+            catch { Directory.Delete(entryDir,true);throw; }
+        }
+        public bool MigrateSmallReference(Capsule c,Shortcut entry)
+        {
+            if(!c.Items.Contains(entry)||!entry.IsReference||!File.Exists(entry.TargetPath))return false;
+            string target=ValidateTarget(entry.TargetPath);
+            if(new FileInfo(target).Length>CopyLimitBytes)return false;
+            if(c.Items.Any(e=>e.Extension==".copy"&&String.Equals(e.TargetPath,target,StringComparison.OrdinalIgnoreCase)))return false;
+            int index=c.Items.IndexOf(entry);
+            c.Items.RemoveAt(index);
+            try
+            {
+                var copy=Add(c,target);copy.Name=entry.Name;
+                c.Items.Remove(copy);c.Items.Insert(index,copy);
+                return true;
+            }
+            catch { c.Items.Insert(index,entry);throw; }
+        }
         public Shortcut CopyIn(Capsule c, string source)
         {
             if (c.Items.Count >= Logic.MaxItems) throw new IOException("每个胶囊最多放 512 个快捷方式。");
@@ -179,7 +243,12 @@ namespace PocketGrid
             {
                 if (!c.Items.Contains(entry)) continue;
                 string file = EntryPath(c, entry);
-                if (!entry.IsReference && File.Exists(file)) recycle(file);
+                if(entry.Extension==".copy")
+                {
+                    string dir=Path.Combine(CapsuleDirectory(c),entry.Id);CheckDirectory(dir);
+                    if(Directory.Exists(dir))recycle(dir);
+                }
+                else if (!entry.IsReference && File.Exists(file)) recycle(file);
                 c.Items.Remove(entry);
             }
         }

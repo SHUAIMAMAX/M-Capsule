@@ -62,6 +62,17 @@ namespace PocketGrid
                     if(c.Items.Any(e=>e.Id==id))continue;
                     c.Items.Add(new Shortcut{Id=id,Extension=Path.GetExtension(file).ToLowerInvariant(),Name="恢复的快捷方式 "+(c.Items.Count+1)});
                 }
+                foreach(string entryDir in Directory.GetDirectories(dir).OrderBy(x=>x,StringComparer.OrdinalIgnoreCase))
+                {
+                    string id=Path.GetFileName(entryDir);
+                    if(c.Items.Count>=Logic.MaxItems)break;
+                    if(!Logic.IsId(id)||(File.GetAttributes(entryDir)&FileAttributes.ReparsePoint)!=0)continue;
+                    var files=Directory.GetFiles(entryDir);
+                    if(files.Length!=1||files[0].EndsWith(".pending",StringComparison.OrdinalIgnoreCase)||(File.GetAttributes(files[0])&FileAttributes.ReparsePoint)!=0)continue;
+                    string name=Path.GetFileName(files[0]);
+                    try{ShortcutStore.ValidateStoredName(name);}catch(InvalidDataException){continue;}
+                    c.Items.Add(new Shortcut{Id=id,Extension=".copy",StoredName=name,Name=Logic.IsShortcut(name)?Path.GetFileNameWithoutExtension(name):name});
+                }
                 p.Capsules.Add(c);
             }
             p.NextColor=p.Capsules.Count;return p;

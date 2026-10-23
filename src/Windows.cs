@@ -44,7 +44,7 @@ namespace PocketGrid
             frame.Child=icon;root.Children.Add(frame);
             label=Ui.Text(capsule.Name,12,Brushes.White);label.HorizontalAlignment=HorizontalAlignment.Center;label.MaxWidth=86;label.TextAlignment=TextAlignment.Center;
             label.Effect=new DropShadowEffect{BlurRadius=4,ShadowDepth=1,Opacity=.9,Color=Colors.Black};Grid.SetRow(label,1);root.Children.Add(label);
-            Content=root;ToolTip="悬停半秒展开 · 拖动后自动对齐桌面网格\n支持拖入文件、照片、文件夹（仅保存引用）";
+            Content=root;ToolTip="悬停半秒展开 · 拖动后自动对齐桌面网格\n文件不超过 5 MiB 复制进胶囊；更大文件和文件夹保存路径引用";
             hoverTimer=new DispatcherTimer(DispatcherPriority.Input){Interval=TimeSpan.FromMilliseconds(500)};
             hoverTimer.Tick+=(s,e)=>
             {
@@ -53,7 +53,7 @@ namespace PocketGrid
                 if(manager.Popup==null||manager.Popup.Capsule.Id!=Capsule.Id)manager.Open(Capsule);
             };
             menu=new ContextMenu();
-            AddMenu("添加文件引用…",()=>manager.ChooseFiles(capsule));
+            AddMenu("添加文件…",()=>manager.ChooseFiles(capsule));
             AddMenu("更名或删除胶囊…",()=>manager.ShowCapsuleList());ContextMenu=menu;
             root.MouseEnter+=(s,e)=>{frame.Background=Ui.Brush(25,255,255,255);if(!pressed){hoverTimer.Stop();hoverTimer.Start();}};
             root.MouseLeave+=(s,e)=>{frame.Background=Brushes.Transparent;hoverTimer.Stop();};
@@ -179,7 +179,7 @@ namespace PocketGrid
             header.Children.Add(new Image{Source=CustomIcons.Source(Settings.DataDirectory,capsule),Width=26,Height=26,
                 Opacity=capsule.HasCustomIcon?1:capsule.IconOpacityPercent/100.0});
             var heading=Ui.Text(capsule.Name,15,Ui.White);heading.FontWeight=FontWeights.SemiBold;heading.VerticalAlignment=VerticalAlignment.Center;heading.Margin=new Thickness(7,0,8,0);Grid.SetColumn(heading,1);header.Children.Add(heading);
-            var add=Ui.Button("+","一次添加多个文件引用，不复制原文件");add.Width=30;add.Height=30;add.Click+=(s,e)=>manager.ChooseFiles(Capsule);Grid.SetColumn(add,2);header.Children.Add(add);content.Children.Add(header);
+            var add=Ui.Button("+","一次添加多个文件；不超过 5 MiB 的文件保存副本");add.Width=30;add.Height=30;add.Click+=(s,e)=>manager.ChooseFiles(Capsule);Grid.SetColumn(add,2);header.Children.Add(add);content.Children.Add(header);
             list=new ListBox{Background=Brushes.Transparent,BorderThickness=new Thickness(0),SelectionMode=SelectionMode.Extended,Padding=new Thickness(0),HorizontalContentAlignment=HorizontalAlignment.Center,Foreground=Ui.White,FocusVisualStyle=null};
             ScrollViewer.SetHorizontalScrollBarVisibility(list,ScrollBarVisibility.Disabled);ScrollViewer.SetVerticalScrollBarVisibility(list,ScrollBarVisibility.Disabled);ScrollViewer.SetCanContentScroll(list,false);
             list.ItemContainerStyle=ItemStyle();Grid.SetRow(list,1);content.Children.Add(list);
@@ -311,7 +311,7 @@ namespace PocketGrid
             }
             empty.Visibility=Capsule.Items.Count==0?Visibility.Visible:Visibility.Collapsed;
             list.Visibility=Capsule.Items.Count==0?Visibility.Collapsed:Visibility.Visible;
-            count.Text=Capsule.Items.Count==0?"只保存引用，不复制原文件":pageCount>1?"第 "+(pageIndex+1)+"/"+pageCount+" 页 · 共 "+Capsule.Items.Count+" 个":"双击打开 · Ctrl/Shift 复选 · Delete 删除";
+            count.Text=Capsule.Items.Count==0?"小文件复制进胶囊 · 大文件和文件夹保存引用":pageCount>1?"第 "+(pageIndex+1)+"/"+pageCount+" 页 · 共 "+Capsule.Items.Count+" 个":"双击打开 · Ctrl/Shift 复选 · Delete 删除";
             previousPage.Visibility=nextPage.Visibility=pageCount>1?Visibility.Visible:Visibility.Collapsed;
             previousPage.IsEnabled=pageIndex>0;nextPage.IsEnabled=pageIndex<pageCount-1;
         }

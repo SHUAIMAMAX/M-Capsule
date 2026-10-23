@@ -27,6 +27,8 @@ namespace PocketGrid
         readonly DispatcherTimer desktopRecovery;
         readonly DispatcherTimer desktopGridTimer;
         readonly DispatcherTimer shellRecovery;
+        readonly DispatcherTimer copyMigration;
+        readonly Queue<Tuple<Capsule,Shortcut>> pendingCopies=new Queue<Tuple<Capsule,Shortcut>>();
         int shellAttempts;
         readonly Native.MouseHook outside;
         readonly EventWaitHandle quitEvent;
@@ -40,6 +42,7 @@ namespace PocketGrid
         public Manager()
         {
             Preferences=Settings.Load();
+            foreach(var c in Preferences.Capsules)foreach(var entry in c.Items.Where(x=>x.IsReference))pendingCopies.Enqueue(Tuple.Create(c,entry));
             Icons=new IconCache(Application.Current.Dispatcher);
             Directory.CreateDirectory(Settings.DataDirectory);
             Controller=new HwndSource(new HwndSourceParameters(RuntimeMode.ControllerTitle) { Width=1,Height=1,WindowStyle=0 });
@@ -51,6 +54,21 @@ namespace PocketGrid
             desktopGridTimer=new DispatcherTimer(DispatcherPriority.Background){Interval=TimeSpan.FromSeconds(2)};
             desktopGridTimer.Tick+=(s,e)=>{if(Native.DesktopForeground())RefreshDesktopGrid();};
             shellRecovery=new DispatcherTimer(DispatcherPriority.Background){Interval=TimeSpan.FromMilliseconds(500)};
+            copyMigration=new DispatcherTimer(DispatcherPriority.Background){Interval=TimeSpan.FromMilliseconds(100)};
+            copyMigration.Tick+=(s,e)=>
+            {
+                if(pendingCopies.Count==0){copyMigration.Stop();return;}
+                var next=pendingCopies.Dequeue();
+                try
+                {
+                    if(Files.MigrateSmallReference(next.Item1,next.Item2))
+                    {
+                        Settings.Save(Preferences);
+                        if(Popup!=null&&Popup.Capsule.Id==next.Item1.Id)Popup.Refresh();
+                    }
+                }
+                catch(Exception ex){StartupLog.Write("small-file migration skipped "+ex.Message);}
+            };
             shellRecovery.Tick+=(s,e)=>
             {
                 bool ready=Windows.Count>0;
@@ -93,7 +111,7 @@ namespace PocketGrid
         void CreateWindow(Capsule c)
         {
             var w=new CapsuleWindow(this,c);
-            if(Windows.Count==0)w.ContentRendered+=(s,e)=>{Program.LogFirstFrame();RefreshDesktopGrid();};
+            if(Windows.Count==0)w.ContentRendered+=(s,e)=>{Program.LogFirstFrame();RefreshDesktopGrid();if(pendingCopies.Count>0)copyMigration.Start();};
             Windows[c.Id]=w;w.Show();w.UpdateIconOcclusion();
         }
         public void Error(Exception ex) { ClosePopup(); MessageBox.Show(ex.Message,Ui.Product,MessageBoxButton.OK,MessageBoxImage.Information); }
@@ -327,7 +345,7 @@ namespace PocketGrid
         public void DeleteCapsule(Capsule c)
         {
             ClosePopup();
-            if(MessageBox.Show("删除胶囊“"+c.Name+"”？\n仅移除文件引用；旧版快捷方式副本移入回收站。原文件、文件夹和软件不受影响。",Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
+            if(MessageBox.Show("删除胶囊“"+c.Name+"”？\n胶囊内的小文件副本会移入回收站；大文件和文件夹的原路径引用只从胶囊移除。原文件不受影响。",Ui.Product,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
             try
             {
                 RemoveCapsule(c);
@@ -351,7 +369,7 @@ namespace PocketGrid
             foreach(var path in paths)
             {
                 if(!seen.Add(path))continue;
-                try{Files.AddReference(c,path);}catch(Exception ex){failures.Add(Path.GetFileName(path)+"："+ex.Message);}
+                try{Files.Add(c,path);}catch(Exception ex){failures.Add(Path.GetFileName(path)+"："+ex.Message);}
             }
             Save();if(Popup!=null&&Popup.Capsule.Id==c.Id)Popup.Refresh(c.Items.Count>previousCount);
             if(failures.Count>0)Error(new IOException(String.Join("\n",failures.Take(8))));
@@ -361,7 +379,7 @@ namespace PocketGrid
             Dialogs++;
             try
             {
-                var dialog=new Microsoft.Win32.OpenFileDialog{Title="添加文件引用到“"+c.Name+"”",Multiselect=true,DereferenceLinks=false,CheckFileExists=true,Filter="所有文件|*.*"};
+                var dialog=new Microsoft.Win32.OpenFileDialog{Title="添加文件到“"+c.Name+"”",Multiselect=true,DereferenceLinks=false,CheckFileExists=true,Filter="所有文件|*.*"};
                 if(dialog.ShowDialog()==true)Add(c,dialog.FileNames);
             }
             finally{Dialogs--;if(Popup!=null){Popup.Activate();Popup.Focus();}}
@@ -377,7 +395,7 @@ namespace PocketGrid
             if(RuntimeMode.Sandbox){RuntimeMode.Log("LAUNCH simulated "+path);return;}
             try
             {
-                if(!File.Exists(path)&&!Directory.Exists(path))throw new IOException("原文件已移动、删除或暂时不可访问：\n"+path+"\n\n胶囊只保存引用。恢复原路径，或移除此条目后重新拖入。");
+                if(!File.Exists(path)&&!Directory.Exists(path))throw new IOException(entry.IsReference?"原文件已移动、删除或暂时不可访问：\n"+path+"\n\n请恢复原路径，或移除此条目后重新拖入。":"胶囊内文件副本丢失：\n"+path);
                 Process.Start(new ProcessStartInfo(path){UseShellExecute=true});
             }
             catch(Exception ex){Error(ex);}
@@ -404,6 +422,7 @@ namespace PocketGrid
             desktopRecovery.Stop();
             desktopGridTimer.Stop();
             shellRecovery.Stop();
+            copyMigration.Stop();
             ClosePopup();if(quitWait!=null)quitWait.Unregister(null);if(quitEvent!=null)quitEvent.Dispose();
             if(taskbar!=null)taskbar.Dispose();
             Icons.Dispose();
